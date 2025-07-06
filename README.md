@@ -105,16 +105,3 @@ python main.py
 
 ---
 
-## Testing
-
-To test functionality:
-
-```bash
-pytest
-```
-
-```
-
-✅ Replace all instances of `yourusername` and `[Your Name Here]` with your actual GitHub username and your name.  
-✅ Create a `LICENSE` file if you want to use the MIT License.
-```
