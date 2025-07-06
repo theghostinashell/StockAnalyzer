@@ -2,7 +2,7 @@
 
 # STOCKANALYZER
 
-A Python-based Stock Data Visualizer & Analyzer by [Your Name Here]
+A Python-based Stock Data Visualizer & Analyzer by ME!
 
 ![GitHub last commit](https://img.shields.io/github/last-commit/yourusername/stockanalyzer)
 ![GitHub issues](https://img.shields.io/github/issues/yourusername/stockanalyzer)
