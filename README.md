@@ -30,7 +30,7 @@ A Python-based Stock Data Visualizer & Analyzer by ME!
 - Visualize stock price trends with moving averages.
 - Calculate and display basic statistical metrics like mean and volatility.
 
-This project is aimed at beginners and made with ❤️ with Python and Matplotlib.
+
 
 ### What can you do with StockAnalyzer?
 
