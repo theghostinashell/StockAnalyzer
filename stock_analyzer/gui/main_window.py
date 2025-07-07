@@ -8,8 +8,12 @@ from data.cache_manager import get_cached_data, set_cached_data
 from utils.helpers import load_config
 import threading
 import datetime
-from analysis.statistics import mean_price, median_price, price_volatility, daily_returns, cumulative_returns, sharpe_ratio
+from analysis.statistics import (
+    mean_price, median_price, price_volatility, daily_returns, cumulative_returns, 
+    sharpe_ratio, value_at_risk
+)
 from analysis.risk_metrics import max_drawdown
+from analysis.recommendations import analyze_timeframe, generate_recommendation, get_timeframe_data
 
 class MainWindow(ttk.Frame):
     def __init__(self, master):
@@ -150,7 +154,8 @@ class MainWindow(ttk.Frame):
             self.loading_var.set("")
             self.status.config(text="Status: Connected")
             self.updated.config(text=f"Last updated: {end_str}")
-            # Compute statistics
+            
+            # Compute basic statistics
             close = df['Close']
             daily_ret = daily_returns(close)
             stats = {
@@ -163,8 +168,24 @@ class MainWindow(ttk.Frame):
                 "Cumulative Return (%)": cumulative_returns(close),
                 "Avg Daily Return (%)": round(daily_ret.mean(), 2) if daily_ret is not None else None,
                 "Sharpe Ratio": sharpe_ratio(close),
+                "Value at Risk (5%)": value_at_risk(close, 0.05),
+                "Current Price": round(close.iloc[-1], 2),
+                "52-Week High": round(close.max(), 2) if not close.empty else None,
+                "52-Week Low": round(close.min(), 2) if not close.empty else None,
             }
-            self.stats_panel.update_stats(stats)
+            
+            # Analyze multiple timeframes
+            timeframes_data = {}
+            for timeframe in ["1D", "5D", "15D", "1M"]:
+                timeframe_df = get_timeframe_data(df, timeframe)
+                if timeframe_df is not None:
+                    timeframes_data[timeframe] = analyze_timeframe(timeframe_df, timeframe)
+            
+            # Generate buy/sell recommendation
+            recommendation = generate_recommendation(symbol, df, timeframes_data)
+            
+            # Update stats panel with comprehensive analysis
+            self.stats_panel.update_stats(stats, recommendation, timeframes_data)
         else:
             self.chart_panel.plot_placeholder()
             self.loading_var.set("No data found.")
