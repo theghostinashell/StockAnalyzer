@@ -150,18 +150,17 @@ def generate_recommendation(symbol, df, timeframes_data):
             signal_strength = calculate_signal_strength(analysis)
             total_score += signal_strength * weight
     
-    # Determine recommendation
-    if total_score >= 30:
+
+    if total_score >= 15:  # Lowered from 30
         recommendation = "BUY"
         confidence = min(95, 50 + abs(total_score))
-    elif total_score <= -30:
+    elif total_score <= -15:  # Lowered from -30
         recommendation = "SELL"
         confidence = min(95, 50 + abs(total_score))
     else:
         recommendation = "HOLD"
         confidence = 50 - abs(total_score)
-    
-    # Generate reasoning
+
     reasoning = generate_reasoning(timeframes_data, total_score)
     
     # Calculate entry/exit prices
@@ -263,10 +262,11 @@ def calculate_price_targets(df, recommendation, signal_strength):
         # Stop loss: above resistance or 5-10% above entry
         stop_loss = min(entry_price * 1.08, resistance * 1.05 if resistance else entry_price * 1.10)
         
-    else:  # HOLD
+    else: 
+
         entry_price = current_price
-        exit_price = current_price
-        stop_loss = current_price
+        exit_price = resistance if resistance else current_price
+        stop_loss = support if support else current_price
     
     return round(entry_price, 2), round(exit_price, 2), round(stop_loss, 2)
 
