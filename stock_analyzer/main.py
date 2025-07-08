@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
-from gui.main_window import MainWindow
+from stock_analyzer.gui.main_window import MainWindow
 
 
 def main():

@@ -1,10 +1,10 @@
 """
-Utility helper functions for the application.
+Helper functions for the application.
 """
 
-import json
 import os
-from .config import default_config
+import json
+from stock_analyzer.utils.config import default_config
 
 def format_currency(value):
     """

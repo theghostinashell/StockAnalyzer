@@ -1,19 +1,19 @@
 import tkinter as tk
 from tkinter import ttk
-from .chart_widget import ChartWidget
-from .stats_panel import StatsPanel
-from .settings_dialog import SettingsDialog
-from data.stock_fetcher import fetch_stock_data
-from data.cache_manager import get_cached_data, set_cached_data
-from utils.helpers import load_config
+from stock_analyzer.gui.chart_widget import ChartWidget
+from stock_analyzer.gui.stats_panel import StatsPanel
+from stock_analyzer.gui.settings_dialog import SettingsDialog
+from stock_analyzer.data.stock_fetcher import fetch_stock_data
+from stock_analyzer.data.cache_manager import get_cached_data, set_cached_data
+from stock_analyzer.utils.helpers import load_config
 import threading
 import datetime
-from analysis.statistics import (
+from stock_analyzer.analysis.statistics import (
     mean_price, median_price, price_volatility, daily_returns, cumulative_returns, 
     sharpe_ratio, value_at_risk
 )
-from analysis.risk_metrics import max_drawdown
-from analysis.recommendations import analyze_timeframe, generate_recommendation, get_timeframe_data
+from stock_analyzer.analysis.risk_metrics import max_drawdown
+from stock_analyzer.analysis.recommendations import analyze_timeframe, generate_recommendation, get_timeframe_data
 
 class MainWindow(ttk.Frame):
     def __init__(self, master):
@@ -23,74 +23,185 @@ class MainWindow(ttk.Frame):
         # Load configuration
         self.config = load_config()
         
+        # Configure modern style
+        self.setup_modern_style()
+        
         self.create_widgets()
         
         # Apply initial chart type
         self.apply_chart_type()
 
+    def setup_modern_style(self):
+        """Setup modern Apple-style appearance."""
+        style = ttk.Style()
+        
+        # Define font family with fallbacks
+        font_family = ("SF Pro Display", "Segoe UI", "Helvetica", "Arial", "sans-serif")
+        
+        # Configure modern colors
+        style.configure("Modern.TFrame", background="#F5F5F7")
+        style.configure("Modern.TLabel", background="#F5F5F7", foreground="#1D1D1F", font=(font_family[1], 10))
+        style.configure("Title.TLabel", background="#F5F5F7", foreground="#1D1D1F", font=(font_family[1], 24, "bold"))
+        style.configure("Header.TLabel", background="#F5F5F7", foreground="#1D1D1F", font=(font_family[1], 14, "bold"))
+        # Modern button style
+        style.configure("Modern.TButton", 
+                       background="#007AFF", 
+                       foreground="white", 
+                       font=(font_family[1], 11, "bold"),
+                       borderwidth=0,
+                       focuscolor="none")
+        style.map("Modern.TButton",
+                 background=[("active", "#0056CC"), ("pressed", "#0056CC")])
+        
+        # Modern entry style
+        style.configure("Modern.TEntry", 
+                       fieldbackground="white", 
+                       borderwidth=1, 
+                       relief="flat",
+                       font=(font_family[1], 11))
+        
+        # Modern combobox style
+        style.configure("Modern.TCombobox", 
+                       fieldbackground="white", 
+                       borderwidth=1, 
+                       relief="flat",
+                       font=(font_family[1], 11))
+        
+        # Settings button style (same blue)
+        style.configure("Settings.TButton", 
+                       background="#007AFF", 
+                       foreground="white", 
+                       font=(font_family[1], 11, "bold"),
+                       borderwidth=0,
+                       focuscolor="none")
+        style.map("Settings.TButton",
+                 background=[("active", "#0056CC"), ("pressed", "#0056CC")])
+        
+        # Configure the main frame
+        self.configure(style="Modern.TFrame")
+
     def create_widgets(self):
-        # Header
-        header = ttk.Frame(self, height=80)
-        header.grid(row=0, column=0, columnspan=2, sticky="nsew")
-        header.grid_propagate(False)
-        title = ttk.Label(header, text="Stock Price Visualizer & Analyzer", font=("Segoe UI", 18, "bold"))
-        title.pack(side=tk.LEFT, padx=20)
-
-        # Stock symbol entry
-        symbol_label = ttk.Label(header, text="Symbol:")
-        symbol_label.pack(side=tk.LEFT, padx=(40, 5))
+        # Define font family with fallbacks
+        font_family = ("SF Pro Display", "Segoe UI", "Helvetica", "Arial", "sans-serif")
+        # Main container with padding
+        main_container = ttk.Frame(self, style="Modern.TFrame", padding=20)
+        main_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Header with modern design
+        header = ttk.Frame(main_container, style="Modern.TFrame")
+        header.pack(fill=tk.X, pady=(0, 20))
+        
+        # Title
+        title = ttk.Label(header, text="Stock Analyzer", style="Title.TLabel")
+        title.pack(anchor=tk.W, pady=(0, 20))
+        
+        # Control panel with modern design
+        control_panel = ttk.Frame(header, style="Modern.TFrame")
+        control_panel.pack(fill=tk.X)
+        
+        # Stock symbol entry with modern styling
+        symbol_frame = ttk.Frame(control_panel, style="Modern.TFrame")
+        symbol_frame.pack(side=tk.LEFT, padx=(0, 15))
+        
+        symbol_label = ttk.Label(symbol_frame, text="Symbol", style="Modern.TLabel")
+        symbol_label.pack(anchor=tk.W, pady=(0, 5))
+        
         self.symbol_var = tk.StringVar()
-        symbol_entry = ttk.Entry(header, textvariable=self.symbol_var, width=12)
-        symbol_entry.pack(side=tk.LEFT)
-
-        # Date range picker (preset dropdown)
-        range_label = ttk.Label(header, text="Range:")
-        range_label.pack(side=tk.LEFT, padx=(30, 5))
+        symbol_entry = ttk.Entry(symbol_frame, textvariable=self.symbol_var, width=15, style="Modern.TEntry")
+        symbol_entry.pack(fill=tk.X)
+        
+        # Date range picker with modern styling
+        range_frame = ttk.Frame(control_panel, style="Modern.TFrame")
+        range_frame.pack(side=tk.LEFT, padx=(0, 15))
+        
+        range_label = ttk.Label(range_frame, text="Time Range", style="Modern.TLabel")
+        range_label.pack(anchor=tk.W, pady=(0, 5))
+        
         self.range_var = tk.StringVar(value=self.config.get("default_date_range", "6M"))
         range_options = ["1M", "3M", "6M", "1Y", "2Y", "5Y"]
-        range_menu = ttk.Combobox(header, textvariable=self.range_var, values=range_options, width=5, state="readonly")
-        range_menu.pack(side=tk.LEFT)
-
-        # Analyze button
-        self.analyze_btn = ttk.Button(header, text="Analyze", command=self.on_analyze)
-        self.analyze_btn.pack(side=tk.LEFT, padx=(30, 5))
-
-        # Loading indicator
+        range_menu = ttk.Combobox(range_frame, textvariable=self.range_var, 
+                                 values=range_options, width=8, state="readonly", style="Modern.TCombobox")
+        range_menu.pack(fill=tk.X)
+        
+        # Analyze button with modern styling
+        button_frame = ttk.Frame(control_panel, style="Modern.TFrame")
+        button_frame.pack(side=tk.LEFT, padx=(0, 15))
+        
+        button_label = ttk.Label(button_frame, text="", style="Modern.TLabel")
+        button_label.pack(anchor=tk.W, pady=(0, 5))
+        
+        self.analyze_btn = tk.Button(button_frame, text="Analyze", command=self.on_analyze, 
+                                    bg="white", fg="#007AFF", activebackground="#F5F5F7", activeforeground="#0056CC", 
+                                    font=(font_family[1], 11, "bold"), relief="flat", bd=0, padx=16, pady=6, cursor="hand2")
+        self.analyze_btn.pack()
+        
+        # Loading indicator with modern styling
+        loading_frame = ttk.Frame(control_panel, style="Modern.TFrame")
+        loading_frame.pack(side=tk.LEFT, padx=(0, 15))
+        
+        loading_label = ttk.Label(loading_frame, text="", style="Modern.TLabel")
+        loading_label.pack(anchor=tk.W, pady=(0, 5))
+        
         self.loading_var = tk.StringVar(value="")
-        self.loading_label = ttk.Label(header, textvariable=self.loading_var, foreground="#007bff")
-        self.loading_label.pack(side=tk.LEFT, padx=(10, 0))
-
-        # Settings icon (gear)
-        settings_btn = ttk.Button(header, text="⚙", width=3, command=self.on_settings)
-        settings_btn.pack(side=tk.LEFT, padx=(10, 0))
-
-        # Content
-        content = ttk.Frame(self)
-        content.grid(row=1, column=0, columnspan=2, sticky="nsew")
-        self.grid_rowconfigure(1, weight=1)
-        self.grid_columnconfigure(0, weight=7)
-        self.grid_columnconfigure(1, weight=3)
-
-        # Chart Panel (70%)
-        self.chart_panel = ChartWidget(content)
-        self.chart_panel.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
-        content.grid_columnconfigure(0, weight=7)
-
-        # Stats Panel (30%)
-        self.stats_panel = StatsPanel(content)
-        self.stats_panel.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
-        content.grid_columnconfigure(1, weight=3)
-
-        # Footer
-        footer = ttk.Frame(self, height=30)
-        footer.grid(row=2, column=0, columnspan=2, sticky="nsew")
-        footer.grid_propagate(False)
-        self.source = ttk.Label(footer, text="Data source: Yahoo Finance", font=("Segoe UI", 9))
-        self.source.pack(side=tk.LEFT, padx=10)
-        self.updated = ttk.Label(footer, text="Last updated: --", font=("Segoe UI", 9))
-        self.updated.pack(side=tk.LEFT, padx=20)
-        self.status = ttk.Label(footer, text="Status: Disconnected", font=("Segoe UI", 9))
-        self.status.pack(side=tk.RIGHT, padx=10)
+        self.loading_label = ttk.Label(loading_frame, textvariable=self.loading_var, 
+                                     style="Modern.TLabel", foreground="#007AFF")
+        self.loading_label.pack()
+        
+        # Settings button with modern styling
+        settings_frame = ttk.Frame(control_panel, style="Modern.TFrame")
+        settings_frame.pack(side=tk.RIGHT)
+        
+        settings_label = ttk.Label(settings_frame, text="", style="Modern.TLabel")
+        settings_label.pack(anchor=tk.W, pady=(0, 5))
+        
+        self.settings_btn = tk.Button(settings_frame, text="⚙", width=3, command=self.on_settings, 
+                                     bg="white", fg="#007AFF", activebackground="#F5F5F7", activeforeground="#0056CC", 
+                                     font=(font_family[1], 11, "bold"), relief="flat", bd=0, padx=8, pady=4, cursor="hand2")
+        self.settings_btn.pack()
+        
+        # Content area with modern design
+        content = ttk.Frame(main_container, style="Modern.TFrame")
+        content.pack(fill=tk.BOTH, expand=True)
+        
+        # Chart Panel (70%) with modern styling
+        chart_container = ttk.Frame(content, style="Modern.TFrame")
+        chart_container.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
+        
+        chart_label = ttk.Label(chart_container, text="Price Chart", style="Header.TLabel")
+        chart_label.pack(anchor=tk.W, pady=(0, 10))
+        
+        self.chart_panel = ChartWidget(chart_container)
+        self.chart_panel.pack(fill=tk.BOTH, expand=True)
+        
+        # Stats Panel (30%) with modern styling
+        stats_container = ttk.Frame(content, style="Modern.TFrame")
+        stats_container.pack(side=tk.RIGHT, fill=tk.BOTH, padx=(10, 0))
+        
+        stats_label = ttk.Label(stats_container, text="Analysis", style="Header.TLabel")
+        stats_label.pack(anchor=tk.W, pady=(0, 10))
+        
+        self.stats_panel = StatsPanel(stats_container)
+        self.stats_panel.pack(fill=tk.BOTH, expand=True)
+        
+        # Footer with modern design
+        footer = ttk.Frame(main_container, style="Modern.TFrame")
+        footer.pack(fill=tk.X, pady=(20, 0))
+        
+        # Footer content
+        footer_content = ttk.Frame(footer, style="Modern.TFrame")
+        footer_content.pack(fill=tk.X)
+        
+        self.source = ttk.Label(footer_content, text="Data source: Yahoo Finance", 
+                               style="Modern.TLabel", font=(font_family[1], 9))
+        self.source.pack(side=tk.LEFT)
+        
+        self.updated = ttk.Label(footer_content, text="Last updated: --", 
+                                style="Modern.TLabel", font=(font_family[1], 9))
+        self.updated.pack(side=tk.LEFT, padx=(20, 0))
+        
+        self.status = ttk.Label(footer_content, text="Status: Ready", 
+                               style="Modern.TLabel", font=(font_family[1], 9))
+        self.status.pack(side=tk.RIGHT)
 
     def apply_chart_type(self):
         """Apply current chart type to the chart."""
@@ -185,7 +296,7 @@ class MainWindow(ttk.Frame):
             recommendation = generate_recommendation(symbol, df, timeframes_data)
             
             # Update stats panel with comprehensive analysis
-            self.stats_panel.update_stats(stats, recommendation, timeframes_data)
+            self.stats_panel.update_stats(stats, recommendation, timeframes_data, df, symbol)
         else:
             self.chart_panel.plot_placeholder()
             self.loading_var.set("No data found.")

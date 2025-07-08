@@ -9,6 +9,23 @@ except ImportError as e:
     print("Please install dependencies with: pip install -r requirements.txt")
     raise
 
+def get_company_name(symbol):
+    """
+    Get company name from ticker symbol using yfinance.
+    Args:
+        symbol (str): Stock ticker symbol
+    Returns:
+        str: Company name, or symbol if not found
+    """
+    try:
+        ticker = yf.Ticker(symbol)
+        info = ticker.info
+        company_name = info.get('longName', symbol)
+        return company_name
+    except Exception as e:
+        print(f"Error fetching company name for {symbol}: {e}")
+        return symbol
+
 def fetch_stock_data(symbol, start, end):
     """
     Fetch OHLCV data for the given stock symbol and date range.

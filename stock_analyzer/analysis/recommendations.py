@@ -5,7 +5,7 @@ Buy/Sell recommendations and analysis for stocks.
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from .technical_indicators import (
+from stock_analyzer.analysis.technical_indicators import (
     simple_moving_average, exponential_moving_average, relative_strength_index,
     macd, bollinger_bands, support_resistance_levels, price_momentum
 )
@@ -131,9 +131,15 @@ def calculate_signal_strength(analysis):
     
     return max(-100, min(100, score))
 
-def generate_recommendation(symbol, df, timeframes_data):
+def generate_recommendation(symbol, df, timeframes_data, timeframe_type="short_term"):
     """
     Generate comprehensive buy/sell recommendation based on multiple timeframes.
+    
+    Args:
+        symbol (str): Stock symbol
+        df (DataFrame): Stock data
+        timeframes_data (dict): Analysis data for different timeframes
+        timeframe_type (str): "short_term" or "long_term"
     """
     if df is None or df.empty:
         return None
@@ -142,19 +148,38 @@ def generate_recommendation(symbol, df, timeframes_data):
     
     # Calculate overall signal strength
     total_score = 0
-    timeframe_weights = {'1D': 0.1, '5D': 0.2, '15D': 0.3, '1M': 0.4}
     
+    # Different weights and thresholds for short vs long term
+    if timeframe_type == "short_term":
+        # Short term: focus on recent timeframes, lower thresholds
+        timeframe_weights = {'1D': 0.25, '5D': 0.35, '15D': 0.25, '1M': 0.15}
+        buy_threshold = 8
+        sell_threshold = -8
+    else:
+        # Long term: focus on longer timeframes, higher thresholds
+        timeframe_weights = {'1D': 0.1, '5D': 0.2, '15D': 0.3, '1M': 0.4}
+        buy_threshold = 12
+        sell_threshold = -12
+    
+    all_signs = []
     for timeframe, analysis in timeframes_data.items():
         if analysis:
             weight = timeframe_weights.get(timeframe, 0.25)
             signal_strength = calculate_signal_strength(analysis)
             total_score += signal_strength * weight
+            all_signs.append(np.sign(signal_strength))
     
+    # Add bias if all timeframes agree (all positive or all negative)
+    if all_signs and all(x > 0 for x in all_signs):
+        total_score += 5
+    elif all_signs and all(x < 0 for x in all_signs):
+        total_score -= 5
 
-    if total_score >= 15:  # Lowered from 30
+    # Use appropriate thresholds
+    if total_score >= buy_threshold:
         recommendation = "BUY"
         confidence = min(95, 50 + abs(total_score))
-    elif total_score <= -15:  # Lowered from -30
+    elif total_score <= sell_threshold:
         recommendation = "SELL"
         confidence = min(95, 50 + abs(total_score))
     else:
@@ -163,8 +188,8 @@ def generate_recommendation(symbol, df, timeframes_data):
 
     reasoning = generate_reasoning(timeframes_data, total_score)
     
-    # Calculate entry/exit prices
-    entry_price, exit_price, stop_loss = calculate_price_targets(df, recommendation, total_score)
+    # Calculate entry/exit prices with timeframe-specific adjustments
+    entry_price, exit_price, stop_loss = calculate_price_targets(df, recommendation, total_score, timeframe_type)
     
     return StockRecommendation(
         symbol=symbol,
@@ -223,7 +248,7 @@ def generate_reasoning(timeframes_data, total_score):
     reasoning_parts.insert(0, overall)
     return " | ".join(reasoning_parts)
 
-def calculate_price_targets(df, recommendation, signal_strength):
+def calculate_price_targets(df, recommendation, signal_strength, timeframe_type="short_term"):
     """
     Calculate entry, exit, and stop loss prices.
     """
@@ -236,34 +261,41 @@ def calculate_price_targets(df, recommendation, signal_strength):
     # Calculate support and resistance levels
     support, resistance = support_resistance_levels(df['Close'], 20)
     
+    # Different targets for short vs long term
+    if timeframe_type == "short_term":
+        profit_target_multiplier = 1.08  # 8% profit target for short term
+        stop_loss_multiplier = 0.97      # 3% stop loss for short term
+    else:
+        profit_target_multiplier = 1.20  # 20% profit target for long term
+        stop_loss_multiplier = 0.90      # 10% stop loss for long term
+    
     if recommendation == "BUY":
         # Entry price: slightly above current price or at support
         entry_price = min(current_price * 1.02, support if support else current_price * 1.01)
         
-        # Exit price: target resistance or 10-20% above entry
-        if resistance and resistance > entry_price * 1.1:
+        # Exit price: target resistance or profit target
+        if resistance and resistance > entry_price * profit_target_multiplier:
             exit_price = resistance
         else:
-            exit_price = entry_price * (1.15 + abs(signal_strength) / 100)
+            exit_price = entry_price * profit_target_multiplier
         
-        # Stop loss: below support or 5-10% below entry
-        stop_loss = max(entry_price * 0.92, support * 0.95 if support else entry_price * 0.90)
+        # Stop loss: below support or stop loss percentage
+        stop_loss = max(entry_price * stop_loss_multiplier, support * 0.95 if support else entry_price * stop_loss_multiplier)
         
     elif recommendation == "SELL":
-        # Entry price: slightly below current price or at resistance
-        entry_price = max(current_price * 0.98, resistance if resistance else current_price * 0.99)
+        # Entry price: at or slightly below current price
+        entry_price = current_price * 0.99
         
-        # Exit price: target support or 10-20% below entry
-        if support and support < entry_price * 0.9:
+        # Exit price: target support or profit target
+        if support and support < entry_price * (2 - profit_target_multiplier):
             exit_price = support
         else:
-            exit_price = entry_price * (0.85 - abs(signal_strength) / 100)
+            exit_price = entry_price * (2 - profit_target_multiplier)
         
-        # Stop loss: above resistance or 5-10% above entry
-        stop_loss = min(entry_price * 1.08, resistance * 1.05 if resistance else entry_price * 1.10)
+        # Stop loss: above entry
+        stop_loss = entry_price * (2 - stop_loss_multiplier)
         
     else: 
-
         entry_price = current_price
         exit_price = resistance if resistance else current_price
         stop_loss = support if support else current_price

@@ -11,23 +11,35 @@ except ImportError as e:
     print("Please install dependencies with: pip install -r requirements.txt")
     raise
 
+# Try different import approaches
+try:
+    from ..data.stock_fetcher import get_company_name
+except ImportError:
+    try:
+        from stock_analyzer.data.stock_fetcher import get_company_name
+    except ImportError:
+        # Fallback: define a simple function that returns the symbol
+        def get_company_name(symbol):
+            return symbol
+
 class ChartWidget(ttk.Frame):
     def __init__(self, master):
         super().__init__(master)
         self.current_chart_type = "line"
         self.current_data = None
         self.current_symbol = None
+        self.current_company_name = None
         
         # Set up the figure
         self.setup_figure()
         
     def setup_figure(self):
-        """Set up the matplotlib figure."""
+        """Set up the matplotlib figure with modern Apple-style design."""
         plt.style.use('default')  # Reset to default style
         
-        # Create figure with light theme
-        self.figure, self.ax = plt.subplots(figsize=(7, 4), facecolor='white')
-        self.ax.set_facecolor('white')
+        # Create figure with modern Apple-style theme
+        self.figure, self.ax = plt.subplots(figsize=(8, 5), facecolor='#F5F5F7')
+        self.ax.set_facecolor('#F5F5F7')
         
         # Create canvas
         self.canvas = FigureCanvasTkAgg(self.figure, master=self)
@@ -44,11 +56,11 @@ class ChartWidget(ttk.Frame):
             self.plot_data(self.current_data, self.current_symbol)
 
     def plot_placeholder(self):
-        """Plot placeholder when no data is available."""
+        """Plot placeholder when no data is available with modern design."""
         self.ax.clear()
-        self.ax.set_facecolor('white')
-        self.ax.text(0.5, 0.5, "No data to display", ha="center", va="center", 
-                    fontsize=14, color="gray", transform=self.ax.transAxes)
+        self.ax.set_facecolor('#F5F5F7')
+        self.ax.text(0.5, 0.5, "Enter a stock symbol to view chart", ha="center", va="center", 
+                    fontsize=16, color="#86868B", fontfamily="Segoe UI", transform=self.ax.transAxes)
         self.ax.set_xticks([])
         self.ax.set_yticks([])
         self.figure.tight_layout()
@@ -58,6 +70,7 @@ class ChartWidget(ttk.Frame):
         """Plot line chart."""
         self.current_data = df
         self.current_symbol = symbol
+        self.current_company_name = get_company_name(symbol)
         self.plot_data(df, symbol)
         
     def plot_data(self, df, symbol=None):
@@ -90,23 +103,37 @@ class ChartWidget(ttk.Frame):
         self.canvas.draw() 
         
     def plot_line_chart_data(self, df, symbol):
-        """Plot line chart data."""
-        self.ax.plot(df.index, df['Close'], label="Close Price", color="#007bff", linewidth=2)
-        self.ax.set_title(f"{symbol} Price Chart" if symbol else "Price Chart", 
-                         color="black", fontsize=14, fontweight='bold')
-        self.ax.set_xlabel("Date", color="black")
-        self.ax.set_ylabel("Price", color="black")
-        self.ax.grid(True, linestyle='--', alpha=0.5, color="#e0e0e0")
-        self.ax.legend(facecolor='white', edgecolor="#e0e0e0")
+        """Plot line chart data with modern Apple-style design."""
+        # Modern Apple-style colors
+        line_color = "#007AFF"
+        grid_color = "#E5E5E7"
+        text_color = "#1D1D1F"
         
-        # Set text colors
-        self.ax.tick_params(colors="black")
+        self.ax.plot(df.index, df['Close'], label="Close Price", color=line_color, linewidth=2.5)
+        self.ax.set_title(f"{self.current_company_name} Price Chart" if self.current_company_name else "Price Chart", 
+                         color=text_color, fontsize=18, fontweight='bold', fontfamily="Segoe UI", pad=20)
+        self.ax.set_xlabel("Date", color=text_color, fontsize=12, fontfamily="Segoe UI")
+        self.ax.set_ylabel("Price ($)", color=text_color, fontsize=12, fontfamily="Segoe UI")
+        self.ax.grid(True, linestyle='-', alpha=0.3, color=grid_color, linewidth=0.5)
+        
+        # Remove legend for cleaner look
+        # self.ax.legend(facecolor='#F5F5F7', edgecolor=grid_color, fontsize=10, fontfamily="Segoe UI")
+        
+        # Set text colors and modern styling
+        self.ax.tick_params(colors=text_color, labelsize=10)
         for spine in self.ax.spines.values():
-            spine.set_color("#e0e0e0")
+            spine.set_color(grid_color)
+            spine.set_linewidth(0.5)
             
     def plot_candlestick_chart_data(self, df, symbol):
-        """Plot candlestick chart data."""
+        """Plot candlestick chart data with modern Apple-style design."""
         try:
+            # Modern Apple-style colors
+            up_color = "#34C759"  # Apple green
+            down_color = "#FF3B30"  # Apple red
+            grid_color = "#E5E5E7"
+            text_color = "#1D1D1F"
+            
             # Calculate candlestick data
             dates = mdates.date2num(df.index.to_pydatetime())
             opens = df['Open'].values
@@ -124,14 +151,14 @@ class ChartWidget(ttk.Frame):
                 
                 # Determine color based on whether price went up or down
                 if close >= open_price:
-                    color = "#21ce99"  # Green for up
-                    body_color = "#21ce99"
+                    color = up_color
+                    body_color = up_color
                 else:
-                    color = "#ff4444"  # Red for down
-                    body_color = "#ff4444"
+                    color = down_color
+                    body_color = down_color
                 
                 # Draw the wick (high-low line)
-                self.ax.plot([date, date], [low, high], color=color, linewidth=1)
+                self.ax.plot([date, date], [low, high], color=color, linewidth=1.5)
                 
                 # Draw the body
                 body_height = abs(close - open_price)
@@ -142,21 +169,22 @@ class ChartWidget(ttk.Frame):
                                    facecolor=body_color, edgecolor=color, linewidth=1)
                     self.ax.add_patch(rect)
             
-            self.ax.set_title(f"{symbol} Candlestick Chart" if symbol else "Candlestick Chart", 
-                             color="black", fontsize=14, fontweight='bold')
-            self.ax.set_xlabel("Date", color="black")
-            self.ax.set_ylabel("Price", color="black")
-            self.ax.grid(True, linestyle='--', alpha=0.5, color="#e0e0e0")
+            self.ax.set_title(f"{self.current_company_name} Candlestick Chart" if self.current_company_name else "Candlestick Chart", 
+                             color=text_color, fontsize=18, fontweight='bold', fontfamily="Segoe UI", pad=20)
+            self.ax.set_xlabel("Date", color=text_color, fontsize=12, fontfamily="Segoe UI")
+            self.ax.set_ylabel("Price ($)", color=text_color, fontsize=12, fontfamily="Segoe UI")
+            self.ax.grid(True, linestyle='-', alpha=0.3, color=grid_color, linewidth=0.5)
             
             # Format x-axis dates
             self.ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
             self.ax.xaxis.set_major_locator(mdates.AutoDateLocator())
-            plt.setp(self.ax.xaxis.get_majorticklabels(), rotation=45)
+            plt.setp(self.ax.xaxis.get_majorticklabels(), rotation=45, fontsize=10, fontfamily="Segoe UI")
             
-            # Set text colors
-            self.ax.tick_params(colors="black")
+            # Set text colors and modern styling
+            self.ax.tick_params(colors=text_color, labelsize=10)
             for spine in self.ax.spines.values():
-                spine.set_color("#e0e0e0")
+                spine.set_color(grid_color)
+                spine.set_linewidth(0.5)
                 
         except Exception as e:
             print(f"Error plotting candlestick chart: {e}")

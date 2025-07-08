@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
-from utils.helpers import load_config, save_config
-from utils.config import chart_types
+from stock_analyzer.utils.helpers import load_config, save_config
+from stock_analyzer.utils.config import chart_types
 
 class SettingsDialog(tk.Toplevel):
     def __init__(self, master, on_settings_changed=None):
