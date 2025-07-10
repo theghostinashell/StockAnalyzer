@@ -10,11 +10,12 @@ class StatsPanel(ttk.Frame):
         self.current_timeframes_data = None
         self.current_df = None
         self.current_symbol = None
+        self.last_timeframe_type = "short_term"  # Store the last selected timeframe
         
         # Setup modern style
         self.setup_modern_style()
         self.create_widgets()
-        
+
     def setup_modern_style(self):
         """Setup modern Apple-style appearance."""
         style = ttk.Style()
@@ -61,10 +62,10 @@ class StatsPanel(ttk.Frame):
         self.canvas.bind("<MouseWheel>", self._on_mousewheel)
         
         self._show_placeholder()
-        
+
     def _on_mousewheel(self, event):
         self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        
+
     def _show_placeholder(self):
         """Show placeholder when no data is available."""
         for widget in self.scrollable_frame.winfo_children():
@@ -85,18 +86,34 @@ class StatsPanel(ttk.Frame):
             return
         
         # Store current data for timeframe changes
-        self.current_recommendation = recommendation
-        self.current_timeframes_data = timeframes_data
         self.current_df = df
         self.current_symbol = symbol
+        self.current_timeframes_data = timeframes_data
+        
+        # Generate recommendation based on last selected timeframe
+        if timeframes_data and symbol and df is not None:
+            try:
+                from ..analysis.recommendations import generate_recommendation
+            except ImportError:
+                try:
+                    from stock_analyzer.analysis.recommendations import generate_recommendation
+                except ImportError:
+                    # If import fails, use the provided recommendation
+                    self.current_recommendation = recommendation
+                else:
+                    self.current_recommendation = generate_recommendation(symbol, df, timeframes_data, self.last_timeframe_type)
+            else:
+                self.current_recommendation = generate_recommendation(symbol, df, timeframes_data, self.last_timeframe_type)
+        else:
+            self.current_recommendation = recommendation
         
         # Title
         title = ttk.Label(self.scrollable_frame, text="Analysis", style="StatsTitle.TLabel")
         title.pack(pady=(10, 20))
         
         # Recommendation Section
-        if recommendation:
-            self._add_recommendation_section(recommendation)
+        if self.current_recommendation:
+            self._add_recommendation_section(self.current_recommendation)
         
         # Timeframes Section
         if timeframes_data:
@@ -145,7 +162,9 @@ class StatsPanel(ttk.Frame):
         
         ttk.Label(right_frame, text="Timeframe", style="StatsSmall.TLabel").pack(side=tk.LEFT, padx=(0, 5))
         
-        self.timeframe_var = tk.StringVar(value="Short Term")
+        # Set dropdown value based on last selected timeframe
+        dropdown_value = "Short Term" if self.last_timeframe_type == "short_term" else "Long Term"
+        self.timeframe_var = tk.StringVar(value=dropdown_value)
         timeframe_combo = ttk.Combobox(right_frame, textvariable=self.timeframe_var, 
                                       values=["Short Term", "Long Term"], 
                                       state="readonly", width=10, style="Stats.TCombobox")
@@ -159,8 +178,38 @@ class StatsPanel(ttk.Frame):
                                font=(font_family[1], 16, "bold"))
         price_label.pack(side=tk.LEFT)
         
+        # User input for "Price you bought at"
+        bought_price_frame = ttk.Frame(rec_card, style="Stats.TFrame")
+        bought_price_frame.pack(fill=tk.X, pady=(10, 5))
+        
+        # Label
+        ttk.Label(bought_price_frame, text="Price you bought at:", 
+                 style="StatsSmall.TLabel").pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Input field
+        self.bought_price_var = tk.StringVar()
+        bought_price_entry = ttk.Entry(bought_price_frame, textvariable=self.bought_price_var, 
+                                      width=10, style="Stats.TEntry")
+        bought_price_entry.pack(side=tk.LEFT, padx=(0, 5))
+        bought_price_entry.bind('<KeyRelease>', self._on_bought_price_changed)
+        
+        # Clear button (red X)
+        clear_btn = tk.Button(bought_price_frame, text="✕", width=2, height=1,
+                             bg="#FF3B30", fg="white", font=(font_family[1], 8, "bold"),
+                             relief="flat", bd=0, cursor="hand2",
+                             command=self._clear_bought_price)
+        clear_btn.pack(side=tk.LEFT)
+        
+        # Updated recommendation based on bought price
+        self.bought_price_recommendation = ttk.Label(bought_price_frame, text="", 
+                                                    style="StatsSmall.TLabel", foreground="#007AFF")
+        self.bought_price_recommendation.pack(side=tk.RIGHT)
+        
         # Entry/Exit/Stop Loss prices in a modern card layout
-        if recommendation.entry_price and recommendation.exit_price and recommendation.stop_loss:
+        if (recommendation.recommendation in ("BUY", "SELL") and
+            recommendation.entry_price is not None and
+            recommendation.exit_price is not None and
+            recommendation.stop_loss is not None):
             prices_card = ttk.Frame(rec_card, style="Stats.TFrame")
             prices_card.pack(fill=tk.X, pady=10)
             
@@ -184,6 +233,11 @@ class StatsPanel(ttk.Frame):
             ttk.Label(stop_frame, text="Stop Loss", style="StatsSmall.TLabel").pack()
             ttk.Label(stop_frame, text=f"${recommendation.stop_loss:.2f}", 
                      font=(font_family[1], 12), foreground="#FF3B30").pack()
+        else:
+            # Show a message for HOLD or invalid values
+            msg = ttk.Label(rec_card, text="No actionable trade setup for this stock and timeframe.",
+                             style="StatsValue.TLabel", foreground="#888888", font=(font_family[1], 11, "italic"))
+            msg.pack(pady=10)
         
         # Reasoning
         if recommendation.reasoning:
@@ -218,52 +272,48 @@ class StatsPanel(ttk.Frame):
                 # If all imports fail, just return
                 return
         
-        timeframe_type = "short_term" if self.timeframe_var.get() == "Short Term" else "long_term"
+        # Update the stored timeframe type
+        self.last_timeframe_type = "short_term" if self.timeframe_var.get() == "Short Term" else "long_term"
+        
+        # Generate new recommendation with the selected timeframe
         new_recommendation = generate_recommendation(
             self.current_symbol, 
             self.current_df, 
             self.current_timeframes_data, 
-            timeframe_type
+            self.last_timeframe_type
         )
         
         if new_recommendation:
-            # Update the recommendation section
-            self._update_recommendation_display(new_recommendation)
+            # Store the new recommendation
+            self.current_recommendation = new_recommendation
+            # Rebuild the entire stats display with the new recommendation
+            self._rebuild_stats_display()
 
-    def _update_recommendation_display(self, recommendation):
-        """Update the recommendation display with new values."""
-        # Find and update the recommendation label
+    def _rebuild_stats_display(self):
+        """Rebuild the entire stats display with current data."""
+        # Clear all widgets
         for widget in self.scrollable_frame.winfo_children():
-            if isinstance(widget, ttk.Frame):
-                for child in widget.winfo_children():
-                    if isinstance(child, ttk.Label) and child.cget("font") == ("SF Pro Display", 18, "bold"):
-                        rec_color = "#34C759" if recommendation.recommendation == "BUY" else "#FF3B30" if recommendation.recommendation == "SELL" else "#FF9500"
-                        child.config(text=recommendation.recommendation, foreground=rec_color)
-                        break
-                # Update confidence
-                for child in widget.winfo_children():
-                    if isinstance(child, ttk.Label) and "confidence" in child.cget("text"):
-                        child.config(text=f"{recommendation.confidence:.0f}% confidence")
-                        break
-                # Update price labels
-                for child in widget.winfo_children():
-                    if isinstance(child, ttk.Frame):
-                        for grandchild in child.winfo_children():
-                            if isinstance(grandchild, ttk.Label) and "Current Price:" in grandchild.cget("text"):
-                                grandchild.config(text=f"${recommendation.current_price:.2f}")
-                                break
-                        # Update entry/exit/stop loss
-                        for grandchild in child.winfo_children():
-                            if isinstance(grandchild, ttk.Frame):
-                                for great_grandchild in grandchild.winfo_children():
-                                    if isinstance(great_grandchild, ttk.Label) and great_grandchild.cget("text").startswith("$"):
-                                        if "Entry" in [sibling.cget("text") for sibling in grandchild.winfo_children() if isinstance(sibling, ttk.Label) and "Entry" in sibling.cget("text")]:
-                                            great_grandchild.config(text=f"${recommendation.entry_price:.2f}")
-                                        elif "Target" in [sibling.cget("text") for sibling in grandchild.winfo_children() if isinstance(sibling, ttk.Label) and "Target" in sibling.cget("text")]:
-                                            great_grandchild.config(text=f"${recommendation.exit_price:.2f}")
-                                        elif "Stop Loss" in [sibling.cget("text") for sibling in grandchild.winfo_children() if isinstance(sibling, ttk.Label) and "Stop Loss" in sibling.cget("text")]:
-                                            great_grandchild.config(text=f"${recommendation.stop_loss:.2f}")
-                                        break
+            widget.destroy()
+        
+        # Rebuild the display with current data
+        if not (self.current_recommendation or self.current_timeframes_data):
+            self._show_placeholder()
+            return
+        
+        # Title
+        title = ttk.Label(self.scrollable_frame, text="Analysis", style="StatsTitle.TLabel")
+        title.pack(pady=(10, 20))
+        
+        # Recommendation Section
+        if self.current_recommendation:
+            self._add_recommendation_section(self.current_recommendation)
+        
+        # Timeframes Section
+        if self.current_timeframes_data:
+            self._add_timeframes_section(self.current_timeframes_data)
+        
+        # Note: We don't have access to the original stats_dict here, so we skip the statistics section
+        # The recommendation and timeframes sections are the most important for timeframe switching
 
     def _add_timeframes_section(self, timeframes_data):
         """Add the timeframes analysis section."""
@@ -308,6 +358,47 @@ class StatsPanel(ttk.Frame):
                                good_range=(-5, 5), format_str="{:.1f}%")
             self._add_indicator(right_col, "SMA50", analysis.get('sma_50'))
             self._add_indicator(right_col, "EMA26", analysis.get('ema_26'))
+
+    def _clear_bought_price(self):
+        """Clear the bought price input and reset recommendation."""
+        self.bought_price_var.set("")
+        if hasattr(self, 'bought_price_recommendation'):
+            self.bought_price_recommendation.config(text="")
+
+    def _on_bought_price_changed(self, event=None):
+        """Handle bought price input change and update recommendation."""
+        if not self.current_recommendation:
+            return
+            
+        try:
+            bought_price = float(self.bought_price_var.get())
+            current_price = self.current_recommendation.current_price
+            
+            # Calculate percentage change
+            pct_change = ((current_price - bought_price) / bought_price) * 100
+            
+            # Determine recommendation based on bought price vs current price
+            if pct_change > 10:  # More than 10% profit
+                rec_text = f"SELL (Take profit: +{pct_change:.1f}%)"
+                rec_color = "#FF3B30"
+            elif pct_change > 5:  # 5-10% profit
+                rec_text = f"HOLD (Profit: +{pct_change:.1f}%)"
+                rec_color = "#FF9500"
+            elif pct_change > -5:  # -5% to +5%
+                rec_text = f"HOLD (Neutral: {pct_change:+.1f}%)"
+                rec_color = "#007AFF"
+            elif pct_change > -15:  # -5% to -15%
+                rec_text = f"HOLD (Loss: {pct_change:.1f}%)"
+                rec_color = "#FF9500"
+            else:  # More than 15% loss
+                rec_text = f"SELL (Cut loss: {pct_change:.1f}%)"
+                rec_color = "#FF3B30"
+                
+            self.bought_price_recommendation.config(text=rec_text, foreground=rec_color)
+            
+        except ValueError:
+            # Invalid input, clear the recommendation
+            self.bought_price_recommendation.config(text="")
 
     def _add_indicator(self, parent, label, value, good_range=None, reverse=False, format_str="{:.2f}"):
         """Add a technical indicator with color coding."""

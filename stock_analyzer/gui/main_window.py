@@ -98,7 +98,7 @@ class MainWindow(ttk.Frame):
         # Control panel with modern design
         control_panel = ttk.Frame(header, style="Modern.TFrame")
         control_panel.pack(fill=tk.X)
-        
+
         # Stock symbol entry with modern styling
         symbol_frame = ttk.Frame(control_panel, style="Modern.TFrame")
         symbol_frame.pack(side=tk.LEFT, padx=(0, 15))
@@ -109,7 +109,7 @@ class MainWindow(ttk.Frame):
         self.symbol_var = tk.StringVar()
         symbol_entry = ttk.Entry(symbol_frame, textvariable=self.symbol_var, width=15, style="Modern.TEntry")
         symbol_entry.pack(fill=tk.X)
-        
+
         # Date range picker with modern styling
         range_frame = ttk.Frame(control_panel, style="Modern.TFrame")
         range_frame.pack(side=tk.LEFT, padx=(0, 15))
@@ -126,7 +126,7 @@ class MainWindow(ttk.Frame):
         # Analyze button with modern styling
         button_frame = ttk.Frame(control_panel, style="Modern.TFrame")
         button_frame.pack(side=tk.LEFT, padx=(0, 15))
-        
+
         button_label = ttk.Label(button_frame, text="", style="Modern.TLabel")
         button_label.pack(anchor=tk.W, pady=(0, 5))
         
@@ -138,7 +138,7 @@ class MainWindow(ttk.Frame):
         # Loading indicator with modern styling
         loading_frame = ttk.Frame(control_panel, style="Modern.TFrame")
         loading_frame.pack(side=tk.LEFT, padx=(0, 15))
-        
+
         loading_label = ttk.Label(loading_frame, text="", style="Modern.TLabel")
         loading_label.pack(anchor=tk.W, pady=(0, 5))
         
@@ -158,7 +158,7 @@ class MainWindow(ttk.Frame):
                                      bg="white", fg="#007AFF", activebackground="#F5F5F7", activeforeground="#0056CC", 
                                      font=(font_family[1], 11, "bold"), relief="flat", bd=0, padx=8, pady=4, cursor="hand2")
         self.settings_btn.pack()
-        
+
         # Content area with modern design
         content = ttk.Frame(main_container, style="Modern.TFrame")
         content.pack(fill=tk.BOTH, expand=True)
@@ -261,7 +261,9 @@ class MainWindow(ttk.Frame):
 
     def _update_ui_after_fetch(self, symbol, df, end_str):
         if df is not None and not df.empty:
-            self.chart_panel.plot_line_chart(df, symbol)
+            # Apply current chart type before plotting
+            self.apply_chart_type()
+            self.chart_panel.plot_data(df, symbol)
             self.loading_var.set("")
             self.status.config(text="Status: Connected")
             self.updated.config(text=f"Last updated: {end_str}")
@@ -292,11 +294,9 @@ class MainWindow(ttk.Frame):
                 if timeframe_df is not None:
                     timeframes_data[timeframe] = analyze_timeframe(timeframe_df, timeframe)
             
-            # Generate buy/sell recommendation
-            recommendation = generate_recommendation(symbol, df, timeframes_data)
-            
             # Update stats panel with comprehensive analysis
-            self.stats_panel.update_stats(stats, recommendation, timeframes_data, df, symbol)
+            # The stats panel will generate the recommendation based on the user's timeframe selection
+            self.stats_panel.update_stats(stats, None, timeframes_data, df, symbol)
         else:
             self.chart_panel.plot_placeholder()
             self.loading_var.set("No data found.")

@@ -74,16 +74,16 @@ def calculate_signal_strength(analysis):
     score = 0
     current_price = analysis['current_price']
     
-    # Moving Average signals
+    # Moving Average signals - more generous scoring
     if analysis['sma_20'] and analysis['sma_50']:
         if current_price > analysis['sma_20'] > analysis['sma_50']:
-            score += 15  # Golden cross
+            score += 20  # Golden cross - increased from 15
         elif current_price < analysis['sma_20'] < analysis['sma_50']:
-            score -= 15  # Death cross
+            score -= 20  # Death cross - increased from 15
         elif current_price > analysis['sma_20']:
-            score += 5
+            score += 10  # Increased from 5
         else:
-            score -= 5
+            score -= 10  # Increased from 5
     
     # EMA signals
     if analysis['ema_12'] and analysis['ema_26']:
@@ -92,16 +92,16 @@ def calculate_signal_strength(analysis):
         else:
             score -= 10
     
-    # RSI signals
+    # RSI signals - more generous scoring
     if analysis['rsi']:
         if analysis['rsi'] < 30:
-            score += 20  # Oversold
+            score += 25  # Oversold - increased from 20
         elif analysis['rsi'] > 70:
-            score -= 20  # Overbought
+            score -= 25  # Overbought - increased from 20
         elif analysis['rsi'] < 40:
-            score += 10
+            score += 15  # Increased from 10
         elif analysis['rsi'] > 60:
-            score -= 10
+            score -= 15  # Increased from 10
     
     # Momentum signals
     if analysis['momentum']:
@@ -149,17 +149,15 @@ def generate_recommendation(symbol, df, timeframes_data, timeframe_type="short_t
     # Calculate overall signal strength
     total_score = 0
     
-    # Different weights and thresholds for short vs long term
+    # Much more responsive thresholds to generate more BUY signals
     if timeframe_type == "short_term":
-        # Short term: focus on recent timeframes, lower thresholds
-        timeframe_weights = {'1D': 0.25, '5D': 0.35, '15D': 0.25, '1M': 0.15}
-        buy_threshold = 8
-        sell_threshold = -8
+        timeframe_weights = {'1D': 0.3, '5D': 0.3, '15D': 0.25, '1M': 0.15}
+        buy_threshold = 2  # Lowered from 5
+        sell_threshold = -2  # Raised from -5
     else:
-        # Long term: focus on longer timeframes, higher thresholds
         timeframe_weights = {'1D': 0.1, '5D': 0.2, '15D': 0.3, '1M': 0.4}
-        buy_threshold = 12
-        sell_threshold = -12
+        buy_threshold = 3  # Lowered from 8
+        sell_threshold = -3  # Raised from -8
     
     all_signs = []
     for timeframe, analysis in timeframes_data.items():
@@ -175,15 +173,16 @@ def generate_recommendation(symbol, df, timeframes_data, timeframe_type="short_t
     elif all_signs and all(x < 0 for x in all_signs):
         total_score -= 5
 
-    # Use appropriate thresholds
+    
+
     if total_score >= buy_threshold:
-        recommendation = "BUY"
+        recommendation = "BUY"  # Good time to buy this stock
         confidence = min(95, 50 + abs(total_score))
     elif total_score <= sell_threshold:
-        recommendation = "SELL"
+        recommendation = "SELL"  # Avoid buying this stock
         confidence = min(95, 50 + abs(total_score))
     else:
-        recommendation = "HOLD"
+        recommendation = "HOLD"  # Neutral, wait for better opportunity
         confidence = 50 - abs(total_score)
 
     reasoning = generate_reasoning(timeframes_data, total_score)
@@ -251,56 +250,46 @@ def generate_reasoning(timeframes_data, total_score):
 def calculate_price_targets(df, recommendation, signal_strength, timeframe_type="short_term"):
     """
     Calculate entry, exit, and stop loss prices.
+    Always based on buying at current price, regardless of recommendation.
     """
     if df is None or df.empty:
         return None, None, None
     
     current_price = df['Close'].iloc[-1]
-    volatility = df['Close'].pct_change().std() * np.sqrt(252)  # Annualized volatility
     
     # Calculate support and resistance levels
     support, resistance = support_resistance_levels(df['Close'], 20)
     
     # Different targets for short vs long term
     if timeframe_type == "short_term":
-        profit_target_multiplier = 1.08  # 8% profit target for short term
-        stop_loss_multiplier = 0.97      # 3% stop loss for short term
+        profit_target_multiplier = 1.05  # 5% profit target for short term
+        stop_loss_multiplier = 0.98      # 2% stop loss for short term
     else:
-        profit_target_multiplier = 1.20  # 20% profit target for long term
-        stop_loss_multiplier = 0.90      # 10% stop loss for long term
+        profit_target_multiplier = 1.25  # 25% profit target for long term
+        stop_loss_multiplier = 0.85      # 15% stop loss for long term
     
-    if recommendation == "BUY":
-        # Entry price: slightly above current price or at support
-        entry_price = min(current_price * 1.02, support if support else current_price * 1.01)
-        
-        # Exit price: target resistance or profit target
-        if resistance and resistance > entry_price * profit_target_multiplier:
-            exit_price = resistance
-        else:
-            exit_price = entry_price * profit_target_multiplier
-        
-        # Stop loss: below support or stop loss percentage
-        stop_loss = max(entry_price * stop_loss_multiplier, support * 0.95 if support else entry_price * stop_loss_multiplier)
-        
-    elif recommendation == "SELL":
-        # Entry price: at or slightly below current price
-        entry_price = current_price * 0.99
-        
-        # Exit price: target support or profit target
-        if support and support < entry_price * (2 - profit_target_multiplier):
-            exit_price = support
-        else:
-            exit_price = entry_price * (2 - profit_target_multiplier)
-        
-        # Stop loss: above entry
-        stop_loss = entry_price * (2 - stop_loss_multiplier)
-        
-    else: 
-        entry_price = current_price
-        exit_price = resistance if resistance else current_price
-        stop_loss = support if support else current_price
+    # Entry price: current price (or slightly below for better entry)
+    entry_price = current_price * 0.995  # 0.5% below current for better entry
     
-    return round(entry_price, 2), round(exit_price, 2), round(stop_loss, 2)
+    # Exit price: target resistance or profit target (always above current)
+    if resistance and resistance > current_price * profit_target_multiplier:
+        exit_price = resistance
+    else:
+        exit_price = current_price * profit_target_multiplier
+    
+    # Stop loss: always below current price
+    if support and support < current_price * stop_loss_multiplier:
+        stop_loss = support
+    else:
+        stop_loss = current_price * stop_loss_multiplier
+    
+    # ENFORCE: stop_loss < entry < exit (always true for buying logic)
+    if not (stop_loss < entry_price < exit_price):
+        entry_price = exit_price = stop_loss = None
+    
+    return (round(entry_price, 2) if entry_price is not None else None,
+            round(exit_price, 2) if exit_price is not None else None,
+            round(stop_loss, 2) if stop_loss is not None else None)
 
 def get_timeframe_data(df, timeframe):
     """

@@ -30,6 +30,11 @@ class ChartWidget(ttk.Frame):
         self.current_symbol = None
         self.current_company_name = None
         
+        # Hover tooltip variables
+        self.hover_annotation = None
+        self.hover_line = None
+        self.hover_point = None
+        
         # Set up the figure
         self.setup_figure()
         
@@ -51,6 +56,10 @@ class ChartWidget(ttk.Frame):
         """Set the chart type and replot if data is available."""
         print(f"Setting chart type to: {chart_type}")
         self.current_chart_type = chart_type
+        
+        # Remove any existing hover elements when switching chart types
+        self.remove_hover_elements()
+        
         if self.current_data is not None:
             print(f"Replotting data with chart type: {chart_type}")
             self.plot_data(self.current_data, self.current_symbol)
@@ -77,6 +86,9 @@ class ChartWidget(ttk.Frame):
         """Plot data with current chart type."""
         print(f"Plotting data with chart type: {self.current_chart_type}")
         print(f"Available columns: {list(df.columns) if df is not None else 'None'}")
+        
+        # Remove any existing hover elements before clearing
+        self.remove_hover_elements()
         
         self.ax.clear()
         self.ax.set_facecolor('white')
@@ -109,7 +121,11 @@ class ChartWidget(ttk.Frame):
         grid_color = "#E5E5E7"
         text_color = "#1D1D1F"
         
-        self.ax.plot(df.index, df['Close'], label="Close Price", color=line_color, linewidth=2.5)
+        # Store data for hover functionality
+        self.current_data = df
+        
+        # Plot the line
+        line, = self.ax.plot(df.index, df['Close'], label="Close Price", color=line_color, linewidth=2.5)
         self.ax.set_title(f"{self.current_company_name} Price Chart" if self.current_company_name else "Price Chart", 
                          color=text_color, fontsize=18, fontweight='bold', fontfamily="Segoe UI", pad=20)
         self.ax.set_xlabel("Date", color=text_color, fontsize=12, fontfamily="Segoe UI")
@@ -124,6 +140,9 @@ class ChartWidget(ttk.Frame):
         for spine in self.ax.spines.values():
             spine.set_color(grid_color)
             spine.set_linewidth(0.5)
+        
+        # Add hover functionality only for line charts
+        self.setup_hover_functionality(line)
             
     def plot_candlestick_chart_data(self, df, symbol):
         """Plot candlestick chart data with modern Apple-style design."""
@@ -185,8 +204,92 @@ class ChartWidget(ttk.Frame):
             for spine in self.ax.spines.values():
                 spine.set_color(grid_color)
                 spine.set_linewidth(0.5)
+            
+            # Store data for potential fallback
+            self.current_data = df
                 
         except Exception as e:
             print(f"Error plotting candlestick chart: {e}")
             # Fallback to line chart
-            self.plot_line_chart_data(df, symbol) 
+            self.plot_line_chart_data(df, symbol)
+    
+    def setup_hover_functionality(self, line):
+        """Setup hover functionality for line charts."""
+        if self.current_chart_type != "line":
+            return
+            
+        # Connect hover events
+        self.canvas.mpl_connect('motion_notify_event', lambda event: self.on_hover(event, line))
+        self.canvas.mpl_connect('axes_leave_event', self.on_leave)
+    
+    def on_hover(self, event, line):
+        """Handle mouse hover events."""
+        if event.inaxes != self.ax or self.current_chart_type != "line":
+            return
+            
+        # Get the closest data point
+        xdata, ydata = line.get_data()
+        if len(xdata) == 0:
+            return
+            
+        # Find closest point
+        x_pos = event.xdata
+        if x_pos is None:
+            return
+            
+        # Convert to datetime if needed
+        if hasattr(xdata[0], 'to_pydatetime'):
+            x_pos_dt = mdates.num2date(x_pos)
+            distances = [abs((x.to_pydatetime() - x_pos_dt).total_seconds()) for x in xdata]
+        else:
+            distances = [abs(x - x_pos) for x in xdata]
+        
+        closest_idx = distances.index(min(distances))
+        closest_x = xdata[closest_idx]
+        closest_y = ydata[closest_idx]
+        
+        # Remove previous hover elements
+        self.remove_hover_elements()
+        
+        # Add vertical line
+        self.hover_line = self.ax.axvline(x=closest_x, color='#FF3B30', alpha=0.7, linewidth=1)
+        
+        # Add point marker
+        self.hover_point = self.ax.plot(closest_x, closest_y, 'o', color='#FF3B30', 
+                                       markersize=8, markeredgecolor='white', markeredgewidth=2)[0]
+        
+        # Add annotation with price
+        price_text = f"${closest_y:.2f}"
+        date_text = closest_x.strftime('%Y-%m-%d') if hasattr(closest_x, 'strftime') else str(closest_x)
+        
+        # Position annotation above the point
+        self.hover_annotation = self.ax.annotate(
+            f"{date_text}\n{price_text}",
+            xy=(closest_x, closest_y),
+            xytext=(10, 10),
+            textcoords='offset points',
+            bbox=dict(boxstyle='round,pad=0.3', facecolor='white', edgecolor='#E5E5E7', alpha=0.9),
+            fontsize=10,
+            fontfamily="Segoe UI",
+            color='#1D1D1F'
+        )
+        
+        # Redraw
+        self.canvas.draw_idle()
+    
+    def on_leave(self, event):
+        """Handle mouse leave events."""
+        self.remove_hover_elements()
+        self.canvas.draw_idle()
+    
+    def remove_hover_elements(self):
+        """Remove hover elements from the chart."""
+        if self.hover_line:
+            self.hover_line.remove()
+            self.hover_line = None
+        if self.hover_point:
+            self.hover_point.remove()
+            self.hover_point = None
+        if self.hover_annotation:
+            self.hover_annotation.remove()
+            self.hover_annotation = None 
