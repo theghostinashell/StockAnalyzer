@@ -3,7 +3,7 @@ from tkinter import ttk
 from stock_analyzer.gui.chart_widget import ChartWidget
 from stock_analyzer.gui.stats_panel import StatsPanel
 from stock_analyzer.gui.settings_dialog import SettingsDialog
-from stock_analyzer.data.stock_fetcher import fetch_stock_data
+from stock_analyzer.data.stock_fetcher import fetch_stock_data, get_company_name
 from stock_analyzer.data.cache_manager import get_cached_data, set_cached_data
 from stock_analyzer.utils.helpers import load_config
 import threading
@@ -167,8 +167,8 @@ class MainWindow(ttk.Frame):
         chart_container = ttk.Frame(content, style="Modern.TFrame")
         chart_container.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
         
-        chart_label = ttk.Label(chart_container, text="Price Chart", style="Header.TLabel")
-        chart_label.pack(anchor=tk.W, pady=(0, 10))
+        self.chart_label = ttk.Label(chart_container, text="Price Chart", style="Header.TLabel")
+        self.chart_label.pack(anchor=tk.W, pady=(0, 10))
         
         self.chart_panel = ChartWidget(chart_container)
         self.chart_panel.pack(fill=tk.BOTH, expand=True)
@@ -176,9 +176,6 @@ class MainWindow(ttk.Frame):
         # Stats Panel (30%) with modern styling
         stats_container = ttk.Frame(content, style="Modern.TFrame")
         stats_container.pack(side=tk.RIGHT, fill=tk.BOTH, padx=(10, 0))
-        
-        stats_label = ttk.Label(stats_container, text="Analysis", style="Header.TLabel")
-        stats_label.pack(anchor=tk.W, pady=(0, 10))
         
         self.stats_panel = StatsPanel(stats_container)
         self.stats_panel.pack(fill=tk.BOTH, expand=True)
@@ -232,77 +229,106 @@ class MainWindow(ttk.Frame):
         threading.Thread(target=self._fetch_and_update, args=(symbol, range_str), daemon=True).start()
 
     def _fetch_and_update(self, symbol, range_str):
-        # Map range_str to start/end dates
-        end = datetime.date.today()
-        if range_str == "1M":
-            start = end - datetime.timedelta(days=30)
-        elif range_str == "3M":
-            start = end - datetime.timedelta(days=90)
-        elif range_str == "6M":
-            start = end - datetime.timedelta(days=182)
-        elif range_str == "1Y":
-            start = end - datetime.timedelta(days=365)
-        elif range_str == "2Y":
-            start = end - datetime.timedelta(days=730)
-        elif range_str == "5Y":
-            start = end - datetime.timedelta(days=1825)
-        else:
-            start = end - datetime.timedelta(days=182)
-        start_str = start.strftime("%Y-%m-%d")
-        end_str = end.strftime("%Y-%m-%d")
-        # Try cache first
-        df = get_cached_data(symbol, start_str, end_str)
-        if df is None:
-            df = fetch_stock_data(symbol, start_str, end_str)
-            if df is not None:
-                set_cached_data(symbol, start_str, end_str, df)
-        # Update UI in main thread
-        self.after(0, self._update_ui_after_fetch, symbol, df, end_str)
+        try:
+            # Map range_str to start/end dates
+            end = datetime.date.today()
+            if range_str == "1M":
+                start = end - datetime.timedelta(days=30)
+            elif range_str == "3M":
+                start = end - datetime.timedelta(days=90)
+            elif range_str == "6M":
+                start = end - datetime.timedelta(days=182)
+            elif range_str == "1Y":
+                start = end - datetime.timedelta(days=365)
+            elif range_str == "2Y":
+                start = end - datetime.timedelta(days=730)
+            elif range_str == "5Y":
+                start = end - datetime.timedelta(days=1825)
+            else:
+                start = end - datetime.timedelta(days=182)
+            start_str = start.strftime("%Y-%m-%d")
+            end_str = end.strftime("%Y-%m-%d")
+            # Try cache first
+            df = get_cached_data(symbol, start_str, end_str)
+            if df is None:
+                df = fetch_stock_data(symbol, start_str, end_str)
+                if df is not None:
+                    set_cached_data(symbol, start_str, end_str, df)
+            # Update UI in main thread
+            self.after(0, self._update_ui_after_fetch, symbol, df, end_str)
+        except Exception as e:
+            # Handle any exceptions and re-enable the button
+            self.after(0, self._handle_fetch_error, str(e))
+    
+    def _handle_fetch_error(self, error_message):
+        """Handle fetch errors and re-enable the analyze button."""
+        self.analyze_btn.config(state=tk.NORMAL)
+        self.loading_var.set(f"Error: {error_message}")
+        self.status.config(text="Status: Error")
+
+    def _calculate_statistics(self, df):
+        """Calculate basic statistics for the stock data."""
+        if df is None or df.empty:
+            return {}
+        
+        close = df['Close']
+        daily_ret = daily_returns(close)
+        stats = {
+            "Mean Price": mean_price(close),
+            "Median Price": median_price(close),
+            "Volatility (Std)": price_volatility(close),
+            "Max Drawdown (%)": max_drawdown(close),
+            "Min Price": round(close.min(), 2) if not close.empty else None,
+            "Max Price": round(close.max(), 2) if not close.empty else None,
+            "Cumulative Return (%)": cumulative_returns(close),
+            "Avg Daily Return (%)": round(daily_ret.mean(), 2) if daily_ret is not None else None,
+            "Sharpe Ratio": sharpe_ratio(close),
+            "Value at Risk (5%)": value_at_risk(close, 0.05),
+            "Current Price": round(close.iloc[-1], 2),
+            "52-Week High": round(close.max(), 2) if not close.empty else None,
+            "52-Week Low": round(close.min(), 2) if not close.empty else None,
+        }
+        return stats
 
     def _update_ui_after_fetch(self, symbol, df, end_str):
-        if df is not None and not df.empty:
-            # Apply current chart type before plotting
-            self.apply_chart_type()
-            self.chart_panel.plot_data(df, symbol)
-            self.loading_var.set("")
-            self.status.config(text="Status: Connected")
-            self.updated.config(text=f"Last updated: {end_str}")
-            
-            # Compute basic statistics
-            close = df['Close']
-            daily_ret = daily_returns(close)
-            stats = {
-                "Mean Price": mean_price(close),
-                "Median Price": median_price(close),
-                "Volatility (Std)": price_volatility(close),
-                "Max Drawdown (%)": max_drawdown(close),
-                "Min Price": round(close.min(), 2) if not close.empty else None,
-                "Max Price": round(close.max(), 2) if not close.empty else None,
-                "Cumulative Return (%)": cumulative_returns(close),
-                "Avg Daily Return (%)": round(daily_ret.mean(), 2) if daily_ret is not None else None,
-                "Sharpe Ratio": sharpe_ratio(close),
-                "Value at Risk (5%)": value_at_risk(close, 0.05),
-                "Current Price": round(close.iloc[-1], 2),
-                "52-Week High": round(close.max(), 2) if not close.empty else None,
-                "52-Week Low": round(close.min(), 2) if not close.empty else None,
-            }
-            
-            # Analyze multiple timeframes
-            timeframes_data = {}
-            for timeframe in ["1D", "5D", "15D", "1M"]:
-                timeframe_df = get_timeframe_data(df, timeframe)
-                if timeframe_df is not None:
-                    timeframes_data[timeframe] = analyze_timeframe(timeframe_df, timeframe)
-            
-            # Update stats panel with comprehensive analysis
-            # The stats panel will generate the recommendation based on the user's timeframe selection
-            self.stats_panel.update_stats(stats, None, timeframes_data, df, symbol)
-        else:
-            self.chart_panel.plot_placeholder()
-            self.loading_var.set("No data found.")
-            self.status.config(text="Status: Error")
-            self.stats_panel.update_stats({})
+        """Update UI with fetched data."""
+        # Always re-enable the analyze button
         self.analyze_btn.config(state=tk.NORMAL)
+        
+        if df is None or df.empty:
+            self.loading_var.set("Error: No data found")
+            self.status.config(text="Status: Error")
+            return
+        
+        # Get company name
+        company_name = get_company_name(symbol)
+        
+        # Update chart label with company name
+        self.chart_label.config(text=f"{company_name} Price Chart")
+        
+        # Update chart
+        self.chart_panel.plot_data(df, symbol)
+        
+        # Calculate statistics
+        stats_dict = self._calculate_statistics(df)
+        
+        # Generate recommendations for both timeframes
+        timeframes_data = {}
+        for timeframe in ['1D', '5D', '15D', '1M']:
+            timeframe_df = get_timeframe_data(df, timeframe)
+            if timeframe_df is not None:
+                timeframes_data[timeframe] = analyze_timeframe(timeframe_df, timeframe)
+        
+        # Get short-term recommendation by default
+        recommendation = generate_recommendation(symbol, df, timeframes_data, "short_term")
+        
+        # Update stats panel
+        self.stats_panel.update_stats(stats_dict, recommendation, timeframes_data, df, symbol)
+        
+        # Update footer
+        self.updated.config(text=f"Last updated: {end_str}")
+        self.loading_var.set("")
+        self.status.config(text="Status: Connected")
 
     def on_settings(self):
         """Open settings dialog."""

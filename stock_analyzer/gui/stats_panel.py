@@ -288,9 +288,18 @@ class StatsPanel(ttk.Frame):
             self.current_recommendation = new_recommendation
             # Rebuild the entire stats display with the new recommendation
             self._rebuild_stats_display()
+            
+            # Update bought price recommendation if there's a value
+            if hasattr(self, 'bought_price_var') and self.bought_price_var.get().strip():
+                self._on_bought_price_changed()
 
     def _rebuild_stats_display(self):
         """Rebuild the entire stats display with current data."""
+        # Store current bought price value if it exists
+        current_bought_price = ""
+        if hasattr(self, 'bought_price_var'):
+            current_bought_price = self.bought_price_var.get()
+        
         # Clear all widgets
         for widget in self.scrollable_frame.winfo_children():
             widget.destroy()
@@ -307,6 +316,11 @@ class StatsPanel(ttk.Frame):
         # Recommendation Section
         if self.current_recommendation:
             self._add_recommendation_section(self.current_recommendation)
+            
+            # Restore bought price value if it existed
+            if current_bought_price and hasattr(self, 'bought_price_var'):
+                self.bought_price_var.set(current_bought_price)
+                self._on_bought_price_changed()
         
         # Timeframes Section
         if self.current_timeframes_data:
@@ -377,22 +391,35 @@ class StatsPanel(ttk.Frame):
             # Calculate percentage change
             pct_change = ((current_price - bought_price) / bought_price) * 100
             
+            # Get current timeframe type
+            timeframe_type = self.last_timeframe_type if hasattr(self, 'last_timeframe_type') else "short_term"
+            
+            # Professional thresholds based on research:
+            # Short term: 5% profit target, 10% stop loss
+            # Long term: 15% profit target, 20% stop loss
+            if timeframe_type == "short_term":
+                profit_threshold = 5.0   # 5% profit to sell
+                loss_threshold = -10.0   # 10% loss to cut
+            else:  # long_term
+                profit_threshold = 15.0  # 15% profit to sell
+                loss_threshold = -20.0   # 20% loss to cut
+            
             # Determine recommendation based on bought price vs current price
-            if pct_change > 10:  # More than 10% profit
+            if pct_change >= profit_threshold:
                 rec_text = f"SELL (Take profit: +{pct_change:.1f}%)"
                 rec_color = "#FF3B30"
-            elif pct_change > 5:  # 5-10% profit
-                rec_text = f"HOLD (Profit: +{pct_change:.1f}%)"
-                rec_color = "#FF9500"
-            elif pct_change > -5:  # -5% to +5%
-                rec_text = f"HOLD (Neutral: {pct_change:+.1f}%)"
-                rec_color = "#007AFF"
-            elif pct_change > -15:  # -5% to -15%
-                rec_text = f"HOLD (Loss: {pct_change:.1f}%)"
-                rec_color = "#FF9500"
-            else:  # More than 15% loss
+            elif pct_change <= loss_threshold:
                 rec_text = f"SELL (Cut loss: {pct_change:.1f}%)"
                 rec_color = "#FF3B30"
+            elif pct_change > 0:
+                rec_text = f"HOLD (Profit: +{pct_change:.1f}%)"
+                rec_color = "#FF9500"
+            elif pct_change > loss_threshold:
+                rec_text = f"HOLD (Loss: {pct_change:.1f}%)"
+                rec_color = "#007AFF"
+            else:
+                rec_text = f"HOLD (Neutral: {pct_change:+.1f}%)"
+                rec_color = "#007AFF"
                 
             self.bought_price_recommendation.config(text=rec_text, foreground=rec_color)
             

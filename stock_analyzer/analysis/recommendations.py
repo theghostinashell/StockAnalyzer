@@ -67,6 +67,7 @@ def calculate_signal_strength(analysis):
     """
     Calculate signal strength based on technical indicators.
     Returns a score from -100 (strong sell) to +100 (strong buy).
+    Based on professional technical analysis research.
     """
     if not analysis:
         return 0
@@ -74,60 +75,68 @@ def calculate_signal_strength(analysis):
     score = 0
     current_price = analysis['current_price']
     
-    # Moving Average signals - more generous scoring
+    # Moving Average signals - more conservative scoring
     if analysis['sma_20'] and analysis['sma_50']:
         if current_price > analysis['sma_20'] > analysis['sma_50']:
-            score += 20  # Golden cross - increased from 15
+            score += 15  # Golden cross - conservative
         elif current_price < analysis['sma_20'] < analysis['sma_50']:
-            score -= 20  # Death cross - increased from 15
+            score -= 15  # Death cross - conservative
         elif current_price > analysis['sma_20']:
-            score += 10  # Increased from 5
+            score += 8   # Above 20-day MA
         else:
-            score -= 10  # Increased from 5
+            score -= 8   # Below 20-day MA
     
-    # EMA signals
+    # EMA signals - more weight on EMA crossovers
     if analysis['ema_12'] and analysis['ema_26']:
         if analysis['ema_12'] > analysis['ema_26']:
-            score += 10
+            score += 12  # Bullish EMA alignment
         else:
-            score -= 10
+            score -= 12  # Bearish EMA alignment
     
-    # RSI signals - more generous scoring
+    # RSI signals - more conservative, focus on extremes
     if analysis['rsi']:
-        if analysis['rsi'] < 30:
-            score += 25  # Oversold - increased from 20
-        elif analysis['rsi'] > 70:
-            score -= 25  # Overbought - increased from 20
-        elif analysis['rsi'] < 40:
-            score += 15  # Increased from 10
-        elif analysis['rsi'] > 60:
-            score -= 15  # Increased from 10
+        if analysis['rsi'] < 25:  # More extreme oversold
+            score += 20  # Strong buy signal
+        elif analysis['rsi'] > 75:  # More extreme overbought
+            score -= 20  # Strong sell signal
+        elif analysis['rsi'] < 35:
+            score += 10  # Moderately oversold
+        elif analysis['rsi'] > 65:
+            score -= 10  # Moderately overbought
     
-    # Momentum signals
+    # Momentum signals - more weight on strong momentum
     if analysis['momentum']:
-        if analysis['momentum'] > 5:
+        if analysis['momentum'] > 8:  # Strong positive momentum
             score += 15
-        elif analysis['momentum'] < -5:
+        elif analysis['momentum'] < -8:  # Strong negative momentum
             score -= 15
+        elif analysis['momentum'] > 3:
+            score += 8
+        elif analysis['momentum'] < -3:
+            score -= 8
     
-    # Bollinger Bands signals
+    # Bollinger Bands signals - more conservative
     if analysis['bollinger_bands']:
         upper, middle, lower = analysis['bollinger_bands']
         if upper is not None and lower is not None:
             if isinstance(upper, pd.Series) and isinstance(lower, pd.Series):
                 if current_price <= lower.iloc[-1]:
-                    score += 15  # Near lower band (oversold)
+                    score += 12  # Near lower band (oversold)
                 elif current_price >= upper.iloc[-1]:
-                    score -= 15  # Near upper band (overbought)
+                    score -= 12  # Near upper band (overbought)
     
-    # MACD signals
+    # MACD signals - more weight on crossovers
     if analysis['macd'][0] is not None and analysis['macd'][1] is not None:
         macd_line, signal_line = analysis['macd'][0], analysis['macd'][1]
         if isinstance(macd_line, pd.Series) and isinstance(signal_line, pd.Series) and len(macd_line) >= 2:
             if macd_line.iloc[-1] > signal_line.iloc[-1] and macd_line.iloc[-2] <= signal_line.iloc[-2]:
-                score += 20  # Bullish crossover
+                score += 18  # Bullish crossover
             elif macd_line.iloc[-1] < signal_line.iloc[-1] and macd_line.iloc[-2] >= signal_line.iloc[-2]:
-                score -= 20  # Bearish crossover
+                score -= 18  # Bearish crossover
+            elif macd_line.iloc[-1] > signal_line.iloc[-1]:
+                score += 8   # MACD above signal
+            else:
+                score -= 8   # MACD below signal
     
     return max(-100, min(100, score))
 
@@ -149,15 +158,15 @@ def generate_recommendation(symbol, df, timeframes_data, timeframe_type="short_t
     # Calculate overall signal strength
     total_score = 0
     
-    # Much more responsive thresholds to generate more BUY signals
+    # Professional thresholds based on research
     if timeframe_type == "short_term":
-        timeframe_weights = {'1D': 0.3, '5D': 0.3, '15D': 0.25, '1M': 0.15}
-        buy_threshold = 2  # Lowered from 5
-        sell_threshold = -2  # Raised from -5
+        timeframe_weights = {'1D': 0.25, '5D': 0.35, '15D': 0.25, '1M': 0.15}
+        buy_threshold = 15   # More conservative - need stronger signals
+        sell_threshold = -15  # More conservative - need stronger signals
     else:
         timeframe_weights = {'1D': 0.1, '5D': 0.2, '15D': 0.3, '1M': 0.4}
-        buy_threshold = 3  # Lowered from 8
-        sell_threshold = -3  # Raised from -8
+        buy_threshold = 20   # Even more conservative for long term
+        sell_threshold = -20  # Even more conservative for long term
     
     all_signs = []
     for timeframe, analysis in timeframes_data.items():

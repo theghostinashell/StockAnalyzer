@@ -211,7 +211,7 @@ class ChartWidget(ttk.Frame):
         except Exception as e:
             print(f"Error plotting candlestick chart: {e}")
             # Fallback to line chart
-            self.plot_line_chart_data(df, symbol)
+            self.plot_line_chart_data(df, symbol) 
     
     def setup_hover_functionality(self, line):
         """Setup hover functionality for line charts."""
