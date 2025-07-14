@@ -3,7 +3,7 @@ from tkinter import ttk
 from stock_analyzer.gui.chart_widget import ChartWidget
 from stock_analyzer.gui.stats_panel import StatsPanel
 from stock_analyzer.gui.settings_dialog import SettingsDialog
-from stock_analyzer.data.stock_fetcher import fetch_stock_data, get_company_name
+from stock_analyzer.data.stock_fetcher import fetch_stock_data, get_company_name, get_available_currencies, get_currency_symbol
 from stock_analyzer.data.cache_manager import get_cached_data, set_cached_data
 from stock_analyzer.utils.helpers import load_config
 import threading
@@ -23,62 +23,159 @@ class MainWindow(ttk.Frame):
         # Load configuration
         self.config = load_config()
         
+        # Initialize currency
+        self.current_currency = 'USD'
+        
         # Configure modern style
         self.setup_modern_style()
+        
+        # Fix title bar theme
+        self.fix_title_bar_theme()
         
         self.create_widgets()
         
         # Apply initial chart type
         self.apply_chart_type()
 
+    def fix_title_bar_theme(self):
+        """Fix the title bar theme to match the current mode."""
+        try:
+            # Get the root window
+            root = self.winfo_toplevel()
+            
+            # Set title bar colors based on theme
+            if self.theme_mode == "dark":
+                # Dark theme title bar
+                root.configure(bg='#1C1C1E')
+                # For Windows, we can try to set the title bar color
+                try:
+                    root.attributes('-alpha', 0.99)  # Force redraw
+                    root.attributes('-alpha', 1.0)
+                except:
+                    pass
+            else:
+                # Light theme title bar
+                root.configure(bg='#F5F5F7')
+                try:
+                    root.attributes('-alpha', 0.99)  # Force redraw
+                    root.attributes('-alpha', 1.0)
+                except:
+                    pass
+        except Exception as e:
+            print(f"Could not fix title bar theme: {e}")
+
     def setup_modern_style(self):
         """Setup modern Apple-style appearance."""
-        style = ttk.Style()
+        self.style = ttk.Style()
         
         # Define font family with fallbacks
-        font_family = ("SF Pro Display", "Segoe UI", "Helvetica", "Arial", "sans-serif")
+        self.font_family = ("SF Pro Display", "Segoe UI", "Helvetica", "Arial", "sans-serif")
         
-        # Configure modern colors
-        style.configure("Modern.TFrame", background="#F5F5F7")
-        style.configure("Modern.TLabel", background="#F5F5F7", foreground="#1D1D1F", font=(font_family[1], 10))
-        style.configure("Title.TLabel", background="#F5F5F7", foreground="#1D1D1F", font=(font_family[1], 24, "bold"))
-        style.configure("Header.TLabel", background="#F5F5F7", foreground="#1D1D1F", font=(font_family[1], 14, "bold"))
-        # Modern button style
-        style.configure("Modern.TButton", 
-                       background="#007AFF", 
-                       foreground="white", 
-                       font=(font_family[1], 11, "bold"),
-                       borderwidth=0,
-                       focuscolor="none")
-        style.map("Modern.TButton",
-                 background=[("active", "#0056CC"), ("pressed", "#0056CC")])
+        # Initialize theme mode
+        self.theme_mode = self.config.get("theme_mode", "light")
         
-        # Modern entry style
-        style.configure("Modern.TEntry", 
-                       fieldbackground="white", 
-                       borderwidth=1, 
-                       relief="flat",
-                       font=(font_family[1], 11))
-        
-        # Modern combobox style
-        style.configure("Modern.TCombobox", 
-                       fieldbackground="white", 
-                       borderwidth=1, 
-                       relief="flat",
-                       font=(font_family[1], 11))
-        
-        # Settings button style (same blue)
-        style.configure("Settings.TButton", 
-                       background="#007AFF", 
-                       foreground="white", 
-                       font=(font_family[1], 11, "bold"),
-                       borderwidth=0,
-                       focuscolor="none")
-        style.map("Settings.TButton",
-                 background=[("active", "#0056CC"), ("pressed", "#0056CC")])
+        # Apply theme
+        self.apply_theme()
         
         # Configure the main frame
         self.configure(style="Modern.TFrame")
+
+    def apply_theme(self):
+        """Apply light or dark theme."""
+        if self.theme_mode == "dark":
+            self._setup_dark_theme()
+        else:
+            self._setup_light_theme()
+        
+        # Update input widget colors
+        self._update_input_widget_colors()
+        
+        # Fix title bar theme
+        self.fix_title_bar_theme()
+
+    def _setup_light_theme(self):
+        """Setup light theme colors."""
+        # Configure modern light colors
+        self.style.configure("Modern.TFrame", background="#F5F5F7")
+        self.style.configure("Modern.TLabel", background="#F5F5F7", foreground="#1D1D1F", font=(self.font_family[1], 10))
+        self.style.configure("Title.TLabel", background="#F5F5F7", foreground="#1D1D1F", font=(self.font_family[1], 24, "bold"))
+        self.style.configure("Header.TLabel", background="#F5F5F7", foreground="#1D1D1F", font=(self.font_family[1], 14, "bold"))
+        
+        # Modern button style
+        self.style.configure("Modern.TButton", 
+                           background="#007AFF", 
+                           foreground="white", 
+                           font=(self.font_family[1], 11, "bold"),
+                           borderwidth=0,
+                           focuscolor="none")
+        self.style.map("Modern.TButton",
+                     background=[("active", "#0056CC"), ("pressed", "#0056CC")])
+        
+        # Modern entry style
+        self.style.configure("Modern.TEntry", 
+                           fieldbackground="white", 
+                           borderwidth=1, 
+                           relief="flat",
+                           font=(self.font_family[1], 11))
+        
+        # Modern combobox style
+        self.style.configure("Modern.TCombobox", 
+                           fieldbackground="white", 
+                           borderwidth=1, 
+                           relief="flat",
+                           font=(self.font_family[1], 11))
+        
+        # Settings button style
+        self.style.configure("Settings.TButton", 
+                           background="#007AFF", 
+                           foreground="white", 
+                           font=(self.font_family[1], 11, "bold"),
+                           borderwidth=0,
+                           focuscolor="none")
+        self.style.map("Settings.TButton",
+                     background=[("active", "#0056CC"), ("pressed", "#0056CC")])
+
+    def _setup_dark_theme(self):
+        """Setup dark theme colors."""
+        # Configure modern dark colors
+        self.style.configure("Modern.TFrame", background="#1C1C1E")
+        self.style.configure("Modern.TLabel", background="#1C1C1E", foreground="#FFFFFF", font=(self.font_family[1], 10))
+        self.style.configure("Title.TLabel", background="#1C1C1E", foreground="#FFFFFF", font=(self.font_family[1], 24, "bold"))
+        self.style.configure("Header.TLabel", background="#1C1C1E", foreground="#FFFFFF", font=(self.font_family[1], 14, "bold"))
+        
+        # Modern button style
+        self.style.configure("Modern.TButton", 
+                           background="#0A84FF", 
+                           foreground="white", 
+                           font=(self.font_family[1], 11, "bold"),
+                           borderwidth=0,
+                           focuscolor="none")
+        self.style.map("Modern.TButton",
+                     background=[("active", "#0056CC"), ("pressed", "#0056CC")])
+        
+        # Modern entry style
+        self.style.configure("Modern.TEntry", 
+                           fieldbackground="#2C2C2E", 
+                           borderwidth=1, 
+                           relief="flat",
+                           font=(self.font_family[1], 11))
+        
+        # Modern combobox style
+        self.style.configure("Modern.TCombobox", 
+                           fieldbackground="#2C2C2E", 
+                           borderwidth=1, 
+                           relief="flat",
+                           font=(self.font_family[1], 11))
+        
+        # Settings button style
+        self.style.configure("Settings.TButton", 
+                           background="#0A84FF", 
+                           foreground="white", 
+                           font=(self.font_family[1], 11, "bold"),
+                           borderwidth=0,
+                           focuscolor="none")
+        self.style.map("Settings.TButton",
+                     background=[("active", "#0056CC"), ("pressed", "#0056CC")])
 
     def create_widgets(self):
         # Define font family with fallbacks
@@ -107,8 +204,30 @@ class MainWindow(ttk.Frame):
         symbol_label.pack(anchor=tk.W, pady=(0, 5))
         
         self.symbol_var = tk.StringVar()
-        symbol_entry = ttk.Entry(symbol_frame, textvariable=self.symbol_var, width=15, style="Modern.TEntry")
-        symbol_entry.pack(fill=tk.X)
+        self.symbol_entry = ttk.Entry(symbol_frame, textvariable=self.symbol_var, width=15, style="Modern.TEntry")
+        self.symbol_entry.pack(fill=tk.X)
+        
+        # Bind Enter key to analyze function
+        self.symbol_entry.bind('<Return>', lambda event: self.on_analyze())
+
+
+        
+        # Currency dropdown
+        currency_frame = ttk.Frame(control_panel, style="Modern.TFrame")
+        currency_frame.pack(side=tk.LEFT, padx=(0, 15))
+        
+        currency_label = ttk.Label(currency_frame, text="Currency", style="Modern.TLabel")
+        currency_label.pack(anchor=tk.W, pady=(0, 5))
+        
+        self.currency_var = tk.StringVar(value=self.current_currency)
+        currencies = get_available_currencies()
+        currency_options = [f"{code} - {currencies[code]['name']}" for code in currencies.keys()]
+        self.currency_menu = ttk.Combobox(currency_frame, textvariable=self.currency_var, 
+                                        values=currency_options, width=15, state="readonly", style="Modern.TCombobox")
+        self.currency_menu.pack(fill=tk.X)
+        
+        # Bind currency change to automatic update
+        self.currency_menu.bind('<<ComboboxSelected>>', self.on_currency_changed)
 
         # Date range picker with modern styling
         range_frame = ttk.Frame(control_panel, style="Modern.TFrame")
@@ -119,9 +238,12 @@ class MainWindow(ttk.Frame):
         
         self.range_var = tk.StringVar(value=self.config.get("default_date_range", "6M"))
         range_options = ["1M", "3M", "6M", "1Y", "2Y", "5Y"]
-        range_menu = ttk.Combobox(range_frame, textvariable=self.range_var, 
+        self.range_menu = ttk.Combobox(range_frame, textvariable=self.range_var, 
                                  values=range_options, width=8, state="readonly", style="Modern.TCombobox")
-        range_menu.pack(fill=tk.X)
+        self.range_menu.pack(fill=tk.X)
+        
+        # Bind timeframe change to automatic analysis
+        self.range_menu.bind('<<ComboboxSelected>>', self.on_timeframe_changed)
         
         # Analyze button with modern styling
         button_frame = ttk.Frame(control_panel, style="Modern.TFrame")
@@ -130,8 +252,20 @@ class MainWindow(ttk.Frame):
         button_label = ttk.Label(button_frame, text="", style="Modern.TLabel")
         button_label.pack(anchor=tk.W, pady=(0, 5))
         
+        # Set initial button colors based on theme
+        if self.theme_mode == "dark":
+            btn_bg = "#2C2C2E"
+            btn_fg = "#0A84FF"
+            btn_active_bg = "#1C1C1E"
+            btn_active_fg = "#0056CC"
+        else:
+            btn_bg = "white"
+            btn_fg = "#007AFF"
+            btn_active_bg = "#F5F5F7"
+            btn_active_fg = "#0056CC"
+        
         self.analyze_btn = tk.Button(button_frame, text="Analyze", command=self.on_analyze, 
-                                    bg="white", fg="#007AFF", activebackground="#F5F5F7", activeforeground="#0056CC", 
+                                    bg=btn_bg, fg=btn_fg, activebackground=btn_active_bg, activeforeground=btn_active_fg, 
                                     font=(font_family[1], 11, "bold"), relief="flat", bd=0, padx=16, pady=6, cursor="hand2")
         self.analyze_btn.pack()
         
@@ -147,22 +281,39 @@ class MainWindow(ttk.Frame):
                                      style="Modern.TLabel", foreground="#007AFF")
         self.loading_label.pack()
         
-        # Settings button with modern styling
-        settings_frame = ttk.Frame(control_panel, style="Modern.TFrame")
-        settings_frame.pack(side=tk.RIGHT)
+        # Theme toggle button with modern styling
+        theme_frame = ttk.Frame(control_panel, style="Modern.TFrame")
+        theme_frame.pack(side=tk.RIGHT, padx=(0, 10))
         
-        settings_label = ttk.Label(settings_frame, text="", style="Modern.TLabel")
-        settings_label.pack(anchor=tk.W, pady=(0, 5))
+        theme_label = ttk.Label(theme_frame, text="", style="Modern.TLabel")
+        theme_label.pack(anchor=tk.W, pady=(0, 5))
+
+        # Set initial theme button text and colors
+        theme_icon = "☀️" if self.theme_mode == "dark" else "🌙"
+        self.theme_btn = tk.Button(theme_frame, text=theme_icon, width=3, command=self.toggle_theme, 
+                                  bg=btn_bg, fg=btn_fg, activebackground=btn_active_bg, activeforeground=btn_active_fg, 
+                                  font=(font_family[1], 11, "bold"), relief="flat", bd=0, padx=8, pady=4, cursor="hand2")
+        self.theme_btn.pack()
+
+        # Chart type toggle button (replaces settings)
+        chart_frame = ttk.Frame(control_panel, style="Modern.TFrame")
+        chart_frame.pack(side=tk.RIGHT, padx=(0, 10))
         
-        self.settings_btn = tk.Button(settings_frame, text="⚙", width=3, command=self.on_settings, 
-                                     bg="white", fg="#007AFF", activebackground="#F5F5F7", activeforeground="#0056CC", 
-                                     font=(font_family[1], 11, "bold"), relief="flat", bd=0, padx=8, pady=4, cursor="hand2")
-        self.settings_btn.pack()
+        chart_label = ttk.Label(chart_frame, text="", style="Modern.TLabel")
+        chart_label.pack(anchor=tk.W, pady=(0, 5))
+        
+        # Initialize chart type
+        self.current_chart_type = self.config.get("chart_type", "line")
+        chart_icon = "📊" if self.current_chart_type == "line" else "🕯️"
+        self.chart_btn = tk.Button(chart_frame, text=chart_icon, width=3, command=self.toggle_chart_type, 
+                                  bg=btn_bg, fg=btn_fg, activebackground=btn_active_bg, activeforeground=btn_active_fg, 
+                                  font=(font_family[1], 11, "bold"), relief="flat", bd=0, padx=8, pady=4, cursor="hand2")
+        self.chart_btn.pack()
 
         # Content area with modern design
         content = ttk.Frame(main_container, style="Modern.TFrame")
         content.pack(fill=tk.BOTH, expand=True)
-        
+
         # Chart Panel (70%) with modern styling
         chart_container = ttk.Frame(content, style="Modern.TFrame")
         chart_container.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
@@ -172,14 +323,14 @@ class MainWindow(ttk.Frame):
         
         self.chart_panel = ChartWidget(chart_container)
         self.chart_panel.pack(fill=tk.BOTH, expand=True)
-        
+
         # Stats Panel (30%) with modern styling
         stats_container = ttk.Frame(content, style="Modern.TFrame")
         stats_container.pack(side=tk.RIGHT, fill=tk.BOTH, padx=(10, 0))
         
         self.stats_panel = StatsPanel(stats_container)
         self.stats_panel.pack(fill=tk.BOTH, expand=True)
-        
+
         # Footer with modern design
         footer = ttk.Frame(main_container, style="Modern.TFrame")
         footer.pack(fill=tk.X, pady=(20, 0))
@@ -200,10 +351,24 @@ class MainWindow(ttk.Frame):
                                style="Modern.TLabel", font=(font_family[1], 9))
         self.status.pack(side=tk.RIGHT)
 
+    def toggle_chart_type(self):
+        """Toggle between line and candlestick chart types."""
+        if self.current_chart_type == "line":
+            self.current_chart_type = "candlestick"
+            self.chart_btn.config(text="🕯️")
+        else:
+            self.current_chart_type = "line"
+            self.chart_btn.config(text="📊")
+        
+        # Update config
+        self.config["chart_type"] = self.current_chart_type
+        
+        # Apply new chart type
+        self.apply_chart_type()
+
     def apply_chart_type(self):
         """Apply current chart type to the chart."""
-        chart_type = self.config.get("chart_type", "line")
-        self.chart_panel.set_chart_type(chart_type)
+        self.chart_panel.set_chart_type(self.current_chart_type)
 
     def on_settings_changed(self, new_config):
         """Handle settings changes from the settings dialog."""
@@ -219,6 +384,11 @@ class MainWindow(ttk.Frame):
     def on_analyze(self):
         symbol = self.symbol_var.get().strip().upper()
         range_str = self.range_var.get()
+        
+        # Get selected currency
+        currency_selection = self.currency_var.get()
+        self.current_currency = currency_selection.split(' - ')[0] if ' - ' in currency_selection else 'USD'
+        
         if not symbol:
             self.loading_var.set("Enter a symbol.")
             return
@@ -227,6 +397,24 @@ class MainWindow(ttk.Frame):
         self.status.config(text="Status: Connecting...")
         # Run data fetch in a thread to avoid blocking UI
         threading.Thread(target=self._fetch_and_update, args=(symbol, range_str), daemon=True).start()
+
+    def on_timeframe_changed(self, event=None):
+        """Handle timeframe change - automatically analyze if symbol is entered."""
+        symbol = self.symbol_var.get().strip().upper()
+        if symbol:
+            # Only auto-analyze if there's already a symbol entered
+            self.on_analyze()
+
+    def on_currency_changed(self, event=None):
+        """Handle currency change - update display immediately if data is available."""
+        currency_selection = self.currency_var.get()
+        self.current_currency = currency_selection.split(' - ')[0] if ' - ' in currency_selection else 'USD'
+        
+        # Update chart currency
+        self.chart_panel.set_currency(self.current_currency)
+        
+        # Update stats panel currency
+        self.stats_panel.set_currency(self.current_currency)
 
     def _fetch_and_update(self, symbol, range_str):
         try:
@@ -251,7 +439,7 @@ class MainWindow(ttk.Frame):
             # Try cache first
             df = get_cached_data(symbol, start_str, end_str)
             if df is None:
-                df = fetch_stock_data(symbol, start_str, end_str)
+                df = fetch_stock_data(symbol, start_str, end_str, self.current_currency)
                 if df is not None:
                     set_cached_data(symbol, start_str, end_str, df)
             # Update UI in main thread
@@ -306,6 +494,9 @@ class MainWindow(ttk.Frame):
         # Update chart label with company name
         self.chart_label.config(text=f"{company_name} Price Chart")
         
+        # Set currency for chart
+        self.chart_panel.set_currency(self.current_currency)
+        
         # Update chart
         self.chart_panel.plot_data(df, symbol)
         
@@ -330,7 +521,66 @@ class MainWindow(ttk.Frame):
         self.loading_var.set("")
         self.status.config(text="Status: Connected")
 
-    def on_settings(self):
-        """Open settings dialog."""
-        settings_dialog = SettingsDialog(self, on_settings_changed=self.on_settings_changed)
-        settings_dialog.focus_set() 
+    def toggle_theme(self):
+        """Toggle between light and dark theme."""
+        if self.theme_mode == "light":
+            self.theme_mode = "dark"
+            self.theme_btn.config(text="☀️")
+        else:
+            self.theme_mode = "light"
+            self.theme_btn.config(text="🌙")
+        
+        # Update config
+        self.config["theme_mode"] = self.theme_mode
+        
+        # Apply new theme
+        self.apply_theme()
+        
+        # Update button colors to match theme
+        self._update_button_colors()
+        
+        # Update chart theme
+        self.chart_panel.set_theme(self.theme_mode)
+        
+        # Update stats panel theme
+        self.stats_panel.set_theme(self.theme_mode)
+
+    def _update_input_widget_colors(self):
+        """Update input widget colors to match current theme."""
+        if self.theme_mode == "dark":
+            # Dark theme colors
+            entry_bg = "#2C2C2E"
+            entry_fg = "#FFFFFF"
+            combo_bg = "#2C2C2E"
+            combo_fg = "#FFFFFF"
+        else:
+            # Light theme colors
+            entry_bg = "white"
+            entry_fg = "#1D1D1F"
+            combo_bg = "white"
+            combo_fg = "#1D1D1F"
+        
+        # Update symbol entry colors
+        if hasattr(self, 'symbol_entry'):
+            self.symbol_entry.configure(style="Modern.TEntry")
+        
+        # Update range menu colors
+        if hasattr(self, 'range_menu'):
+            self.range_menu.configure(style="Modern.TCombobox")
+        
+        # Update currency menu
+        if hasattr(self, 'currency_menu'):
+            self.currency_menu.configure(style="Modern.TCombobox")
+
+    def _update_button_colors(self):
+        """Update button colors to match current theme."""
+        if self.theme_mode == "dark":
+            # Dark theme button colors
+            self.analyze_btn.config(bg="#2C2C2E", fg="#0A84FF", activebackground="#1C1C1E", activeforeground="#0056CC")
+            self.theme_btn.config(bg="#2C2C2E", fg="#0A84FF", activebackground="#1C1C1E", activeforeground="#0056CC")
+            self.chart_btn.config(bg="#2C2C2E", fg="#0A84FF", activebackground="#1C1C1E", activeforeground="#0056CC")
+        else:
+            # Light theme button colors
+            self.analyze_btn.config(bg="white", fg="#007AFF", activebackground="#F5F5F7", activeforeground="#0056CC")
+            self.theme_btn.config(bg="white", fg="#007AFF", activebackground="#F5F5F7", activeforeground="#0056CC")
+            self.chart_btn.config(bg="white", fg="#007AFF", activebackground="#F5F5F7", activeforeground="#0056CC") 

@@ -9,7 +9,6 @@ def main():
     root.title("Stock Price Visualizer & Analyzer")
     root.geometry("1200x800")
     root.minsize(900, 600)
-    # Set full screen by default
     if sys.platform.startswith('win'):
         root.state('zoomed')
     else:

@@ -2,6 +2,17 @@ import tkinter as tk
 from tkinter import ttk
 import textwrap
 
+# Try different import approaches for currency symbol
+try:
+    from ..data.stock_fetcher import get_currency_symbol
+except ImportError:
+    try:
+        from stock_analyzer.data.stock_fetcher import get_currency_symbol
+    except ImportError:
+        # Fallback: define a simple function that returns the symbol
+        def get_currency_symbol(currency_code):
+            return '$'
+
 class StatsPanel(ttk.Frame):
     def __init__(self, master):
         super().__init__(master)
@@ -10,6 +21,7 @@ class StatsPanel(ttk.Frame):
         self.current_timeframes_data = None
         self.current_df = None
         self.current_symbol = None
+        self.current_currency = 'USD'
         self.last_timeframe_type = "short_term"  # Store the last selected timeframe
         
         # Setup modern style
@@ -18,28 +30,101 @@ class StatsPanel(ttk.Frame):
 
     def setup_modern_style(self):
         """Setup modern Apple-style appearance."""
-        style = ttk.Style()
+        self.style = ttk.Style()
         
         # Define font family with fallbacks
-        font_family = ("SF Pro Display", "Segoe UI", "Helvetica", "Arial", "sans-serif")
+        self.font_family = ("SF Pro Display", "Segoe UI", "Helvetica", "Arial", "sans-serif")
         
-        # Configure modern colors and styles
-        style.configure("Stats.TFrame", background="#F5F5F7")
-        style.configure("Stats.TLabel", background="#F5F5F7", foreground="#1D1D1F", font=(font_family[1], 10))
-        style.configure("StatsTitle.TLabel", background="#F5F5F7", foreground="#1D1D1F", font=(font_family[1], 16, "bold"))
-        style.configure("StatsHeader.TLabel", background="#F5F5F7", foreground="#1D1D1F", font=(font_family[1], 12, "bold"))
-        style.configure("StatsValue.TLabel", background="#F5F5F7", foreground="#1D1D1F", font=(font_family[1], 11))
-        style.configure("StatsSmall.TLabel", background="#F5F5F7", foreground="#86868B", font=(font_family[1], 9))
+        # Initialize theme mode
+        self.theme_mode = "light"
         
-        # Modern combobox style
-        style.configure("Stats.TCombobox", 
-                       fieldbackground="white", 
-                       borderwidth=1, 
-                       relief="flat",
-                       font=(font_family[1], 10))
+        # Apply theme
+        self.apply_theme()
         
         # Configure the main frame
         self.configure(style="Stats.TFrame")
+
+    def apply_theme(self):
+        """Apply light or dark theme."""
+        if self.theme_mode == "dark":
+            self._setup_dark_theme()
+        else:
+            self._setup_light_theme()
+
+    def _setup_light_theme(self):
+        """Setup light theme colors."""
+        # Configure modern light colors and styles
+        self.style.configure("Stats.TFrame", background="#F5F5F7")
+        self.style.configure("Stats.TLabel", background="#F5F5F7", foreground="#1D1D1F", font=(self.font_family[1], 10))
+        self.style.configure("StatsTitle.TLabel", background="#F5F5F7", foreground="#1D1D1F", font=(self.font_family[1], 16, "bold"))
+        self.style.configure("StatsHeader.TLabel", background="#F5F5F7", foreground="#1D1D1F", font=(self.font_family[1], 12, "bold"))
+        self.style.configure("StatsValue.TLabel", background="#F5F5F7", foreground="#1D1D1F", font=(self.font_family[1], 11))
+        self.style.configure("StatsSmall.TLabel", background="#F5F5F7", foreground="#86868B", font=(self.font_family[1], 9))
+        
+        # Modern combobox style
+        self.style.configure("Stats.TCombobox", 
+                           fieldbackground="white", 
+                           borderwidth=1, 
+                           relief="flat",
+                           font=(self.font_family[1], 10))
+        
+        # Modern entry style
+        self.style.configure("Stats.TEntry", 
+                           fieldbackground="white", 
+                           borderwidth=1, 
+                           relief="flat",
+                           font=(self.font_family[1], 10))
+
+    def _setup_dark_theme(self):
+        """Setup dark theme colors."""
+        # Configure modern dark colors and styles
+        self.style.configure("Stats.TFrame", background="#1C1C1E")
+        self.style.configure("Stats.TLabel", background="#1C1C1E", foreground="#FFFFFF", font=(self.font_family[1], 10))
+        self.style.configure("StatsTitle.TLabel", background="#1C1C1E", foreground="#FFFFFF", font=(self.font_family[1], 16, "bold"))
+        self.style.configure("StatsHeader.TLabel", background="#1C1C1E", foreground="#FFFFFF", font=(self.font_family[1], 12, "bold"))
+        self.style.configure("StatsValue.TLabel", background="#1C1C1E", foreground="#FFFFFF", font=(self.font_family[1], 11))
+        self.style.configure("StatsSmall.TLabel", background="#1C1C1E", foreground="#8E8E93", font=(self.font_family[1], 9))
+        
+        # Modern combobox style
+        self.style.configure("Stats.TCombobox", 
+                           fieldbackground="#2C2C2E", 
+                           borderwidth=1, 
+                           relief="flat",
+                           font=(self.font_family[1], 10))
+        
+        # Modern entry style
+        self.style.configure("Stats.TEntry", 
+                           fieldbackground="#2C2C2E", 
+                           borderwidth=1, 
+                           relief="flat",
+                           font=(self.font_family[1], 10))
+
+    def set_theme(self, theme_mode):
+        """Set the stats panel theme (light or dark)."""
+        self.theme_mode = theme_mode
+        self.apply_theme()
+        self._update_widget_colors()
+        if hasattr(self, 'current_df') and self.current_df is not None:
+            self._rebuild_stats_display()
+
+    def set_currency(self, currency_code):
+        """Set the currency for price display."""
+        self.current_currency = currency_code
+        if hasattr(self, 'current_df') and self.current_df is not None:
+            self._rebuild_stats_display()
+
+    def _update_widget_colors(self):
+        """Update widget colors to match current theme."""
+        if self.theme_mode == "dark":
+            bg_color = "#1C1C1E"
+            text_color = "#FFFFFF"
+        else:
+            bg_color = "#F5F5F7"
+            text_color = "#1D1D1F"
+        
+        # Update canvas background
+        if hasattr(self, 'canvas'):
+            self.canvas.configure(bg=bg_color)
         
     def create_widgets(self):
         # Create a canvas with scrollbar
@@ -149,7 +234,7 @@ class StatsPanel(ttk.Frame):
         rec_color = "#34C759" if recommendation.recommendation == "BUY" else "#FF3B30" if recommendation.recommendation == "SELL" else "#FF9500"
         
         rec_label = ttk.Label(left_frame, text=rec_text, 
-                             font=(font_family[1], 18, "bold"), foreground=rec_color)
+                             font=(font_family[1], 18, "bold"), foreground=rec_color, style="Stats.TLabel")
         rec_label.pack(side=tk.LEFT, padx=(0, 10))
         
         conf_label = ttk.Label(left_frame, text=f"{recommendation.confidence:.0f}% confidence", 
@@ -175,7 +260,7 @@ class StatsPanel(ttk.Frame):
         price_frame = ttk.Frame(rec_card, style="Stats.TFrame")
         price_frame.pack(fill=tk.X, pady=5)
         price_label = ttk.Label(price_frame, text=f"${recommendation.current_price:.2f}", 
-                               font=(font_family[1], 16, "bold"))
+                               font=(font_family[1], 16, "bold"), style="Stats.TLabel")
         price_label.pack(side=tk.LEFT)
         
         # User input for "Price you bought at"
@@ -333,7 +418,7 @@ class StatsPanel(ttk.Frame):
         """Add the timeframes analysis section."""
         # Timeframes header
         tf_header = ttk.Label(self.scrollable_frame, text="TIMEFRAME ANALYSIS", 
-                             font=("Segoe UI", 12, "bold"), foreground="#2E86AB")
+                             style="StatsHeader.TLabel")
         tf_header.pack(pady=(10, 5))
         
         for timeframe, analysis in timeframes_data.items():
@@ -341,25 +426,29 @@ class StatsPanel(ttk.Frame):
                 continue
                 
             # Timeframe frame
-            tf_frame = ttk.LabelFrame(self.scrollable_frame, text=timeframe, padding=5)
+            tf_frame = ttk.Frame(self.scrollable_frame, style="Stats.TFrame")
             tf_frame.pack(fill=tk.X, padx=10, pady=2)
             
+            # Timeframe title
+            ttk.Label(tf_frame, text=timeframe, style="StatsHeader.TLabel").pack(anchor=tk.W, pady=(5, 5))
+            
             # Price info
-            price_info = f"${analysis['current_price']:.2f} ({analysis['price_change']:+.1f}%)"
-            price_color = "#28A745" if analysis['price_change'] >= 0 else "#DC3545"
-            ttk.Label(tf_frame, text=price_info, font=("Segoe UI", 10, "bold"), 
+            currency_symbol = get_currency_symbol(self.current_currency)
+            price_info = f"{currency_symbol}{analysis['current_price']:.2f} ({analysis['price_change']:+.1f}%)"
+            price_color = "#34C759" if analysis['price_change'] >= 0 else "#FF3B30"
+            ttk.Label(tf_frame, text=price_info, style="StatsValue.TLabel", 
                      foreground=price_color).pack(anchor=tk.W)
             
             # Technical indicators
-            indicators_frame = ttk.Frame(tf_frame)
+            indicators_frame = ttk.Frame(tf_frame, style="Stats.TFrame")
             indicators_frame.pack(fill=tk.X, pady=(5, 0))
             
             # Left column
-            left_col = ttk.Frame(indicators_frame)
+            left_col = ttk.Frame(indicators_frame, style="Stats.TFrame")
             left_col.pack(side=tk.LEFT, fill=tk.X, expand=True)
             
             # Right column
-            right_col = ttk.Frame(indicators_frame)
+            right_col = ttk.Frame(indicators_frame, style="Stats.TFrame")
             right_col.pack(side=tk.RIGHT, fill=tk.X, expand=True)
             
             # Add indicators
@@ -432,10 +521,10 @@ class StatsPanel(ttk.Frame):
         if value is None:
             return
             
-        frame = ttk.Frame(parent)
+        frame = ttk.Frame(parent, style="Stats.TFrame")
         frame.pack(fill=tk.X, pady=1)
         
-        ttk.Label(frame, text=f"{label}:", font=("Segoe UI", 8), width=8).pack(side=tk.LEFT)
+        ttk.Label(frame, text=f"{label}:", style="StatsSmall.TLabel", width=8).pack(side=tk.LEFT)
         
         # Color coding
         color = "#495057"  # Default gray
@@ -452,26 +541,26 @@ class StatsPanel(ttk.Frame):
                     color = "#FFC107"  # Yellow for high
         
         formatted_value = format_str.format(value)
-        ttk.Label(frame, text=formatted_value, font=("Segoe UI", 8), 
+        ttk.Label(frame, text=formatted_value, style="StatsSmall.TLabel", 
                  foreground=color).pack(side=tk.RIGHT)
 
     def _add_statistics_section(self, stats_dict):
         """Add the general statistics section."""
         # Statistics header
         stats_header = ttk.Label(self.scrollable_frame, text="GENERAL STATISTICS", 
-                                font=("Segoe UI", 12, "bold"), foreground="#2E86AB")
+                                style="StatsHeader.TLabel")
         stats_header.pack(pady=(10, 5))
         
         # Statistics frame
-        stats_frame = ttk.Frame(self.scrollable_frame)
+        stats_frame = ttk.Frame(self.scrollable_frame, style="Stats.TFrame")
         stats_frame.pack(fill=tk.X, padx=10, pady=5)
         
         for key, value in stats_dict.items():
             if value is not None:
-                row = ttk.Frame(stats_frame)
+                row = ttk.Frame(stats_frame, style="Stats.TFrame")
                 row.pack(fill=tk.X, pady=1)
                 
-                label = ttk.Label(row, text=f"{key}:", width=20, anchor="w", font=("Segoe UI", 9))
+                label = ttk.Label(row, text=f"{key}:", width=20, anchor="w", style="StatsValue.TLabel")
                 label.pack(side=tk.LEFT)
                 
                 # Format value with appropriate suffix
@@ -481,13 +570,14 @@ class StatsPanel(ttk.Frame):
                     elif "Ratio" in key:
                         formatted_value = f"{value:.2f}"
                     elif "Price" in key or "Volatility" in key:
-                        formatted_value = f"${value:.2f}"
+                        currency_symbol = get_currency_symbol(self.current_currency)
+                        formatted_value = f"{currency_symbol}{value:.2f}"
                     else:
                         formatted_value = f"{value:.2f}"
                 else:
                     formatted_value = str(value)
                 
-                val_label = ttk.Label(row, text=formatted_value, anchor="e", font=("Segoe UI", 9))
+                val_label = ttk.Label(row, text=formatted_value, anchor="e", style="StatsValue.TLabel")
                 val_label.pack(side=tk.RIGHT)
                 
                 self.labels[key] = val_label 

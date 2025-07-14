@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-"""
-Test script to debug the stock analysis functionality.
-"""
 
 import sys
 import os

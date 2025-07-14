@@ -1,6 +1,3 @@
-"""
-Simple file-based cache manager for stock data.
-"""
 import os
 import pickle
 try:
@@ -17,9 +14,6 @@ def _cache_filename(symbol, start, end):
     return os.path.join(CACHE_DIR, f"{symbol}_{start}_{end}.pkl")
 
 def get_cached_data(symbol, start, end):
-    """
-    Retrieve cached data for the given symbol and date range, if available.
-    """
     fname = _cache_filename(symbol, start, end)
     if os.path.exists(fname):
         try:
@@ -32,9 +26,6 @@ def get_cached_data(symbol, start, end):
     return None
 
 def set_cached_data(symbol, start, end, data):
-    """
-    Store data in cache for the given symbol and date range.
-    """
     fname = _cache_filename(symbol, start, end)
     try:
         with open(fname, 'wb') as f:
