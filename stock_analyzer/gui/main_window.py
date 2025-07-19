@@ -293,7 +293,7 @@ class MainWindow(ttk.Frame):
         self.theme_btn = tk.Button(theme_frame, text=theme_icon, width=3, command=self.toggle_theme, 
                                   bg=btn_bg, fg=btn_fg, activebackground=btn_active_bg, activeforeground=btn_active_fg, 
                                   font=(font_family[1], 11, "bold"), relief="flat", bd=0, padx=8, pady=4, cursor="hand2")
-        self.theme_btn.pack()
+        self.theme_btn.pack(anchor=tk.CENTER)
 
         # Chart type toggle button (replaces settings)
         chart_frame = ttk.Frame(control_panel, style="Modern.TFrame")
@@ -308,7 +308,7 @@ class MainWindow(ttk.Frame):
         self.chart_btn = tk.Button(chart_frame, text=chart_icon, width=3, command=self.toggle_chart_type, 
                                   bg=btn_bg, fg=btn_fg, activebackground=btn_active_bg, activeforeground=btn_active_fg, 
                                   font=(font_family[1], 11, "bold"), relief="flat", bd=0, padx=8, pady=4, cursor="hand2")
-        self.chart_btn.pack()
+        self.chart_btn.pack(anchor=tk.CENTER)
 
         # Content area with modern design
         content = ttk.Frame(main_container, style="Modern.TFrame")

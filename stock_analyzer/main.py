@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from stock_analyzer.gui.main_window import MainWindow
+from stock_analyzer.data.cache_manager import clear_cache
 import sys
 
 
@@ -15,7 +16,10 @@ def main():
         root.attributes('-fullscreen', True)
     app = MainWindow(root)
     app.pack(fill=tk.BOTH, expand=True)
-    root.mainloop()
+    try:
+        root.mainloop()
+    finally:
+        clear_cache()
 
 
 if __name__ == "__main__":

@@ -99,6 +99,28 @@ class StatsPanel(ttk.Frame):
                            relief="flat",
                            font=(self.font_family[1], 10))
 
+    def _update_scrollbar_colors(self):
+        """Update scrollbar colors to match current theme."""
+        if not hasattr(self, 'scrollbar'):
+            return
+            
+        if self.theme_mode == "dark":
+            # Dark theme - blue scrollbar matching chart line
+            self.scrollbar.configure(
+                background="#0A84FF",      # Blue slider (same as chart line)
+                troughcolor="#2C2C2E",     # Dark background
+                activebackground="#0056CC", # Darker blue when active
+                width=12
+            )
+        else:
+            # Light theme - light gray scrollbar
+            self.scrollbar.configure(
+                background="#E5E5E7",      # Light gray slider
+                troughcolor="#F5F5F7",     # Very light background
+                activebackground="#D1D1D6", # Darker gray when active
+                width=12
+            )
+
     def set_theme(self, theme_mode):
         """Set the stats panel theme (light or dark)."""
         self.theme_mode = theme_mode
@@ -126,10 +148,13 @@ class StatsPanel(ttk.Frame):
         if hasattr(self, 'canvas'):
             self.canvas.configure(bg=bg_color)
         
+        # Update scrollbar colors
+        self._update_scrollbar_colors()
+
     def create_widgets(self):
         # Create a canvas with scrollbar
         self.canvas = tk.Canvas(self, bg='#F5F5F7', highlightthickness=0)
-        scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        scrollbar = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
         self.scrollable_frame = ttk.Frame(self.canvas, style="Stats.TFrame")
         
         self.scrollable_frame.bind(
@@ -143,13 +168,32 @@ class StatsPanel(ttk.Frame):
         self.canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         
-        # Bind mouse wheel to scroll
+        # Bind mouse wheel to scroll on the entire stats panel
+        self.bind("<MouseWheel>", self._on_mousewheel)
         self.canvas.bind("<MouseWheel>", self._on_mousewheel)
+        self.scrollable_frame.bind("<MouseWheel>", self._on_mousewheel)
+        
+        # Store scrollbar reference for styling
+        self.scrollbar = scrollbar
+        
+        # Apply initial scrollbar styling
+        self._update_scrollbar_colors()
         
         self._show_placeholder()
 
     def _on_mousewheel(self, event):
-        self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        """Handle mouse wheel scrolling with improved sensitivity."""
+        # Get the current scroll position
+        current_pos = self.canvas.yview()
+        
+        # Calculate scroll amount (more sensitive scrolling)
+        scroll_amount = int(-1 * (event.delta / 120)) * 3  # 3x more sensitive
+        
+        # Apply scrolling
+        self.canvas.yview_scroll(scroll_amount, "units")
+        
+        # Prevent event propagation to avoid conflicts
+        return "break"
 
     def _show_placeholder(self):
         """Show placeholder when no data is available."""
@@ -174,6 +218,7 @@ class StatsPanel(ttk.Frame):
         self.current_df = df
         self.current_symbol = symbol
         self.current_timeframes_data = timeframes_data
+        self.last_stats_dict = stats_dict  # <--- Store the stats dict
         
         # Generate recommendation based on last selected timeframe
         if timeframes_data and symbol and df is not None:
@@ -256,10 +301,13 @@ class StatsPanel(ttk.Frame):
         timeframe_combo.pack(side=tk.LEFT)
         timeframe_combo.bind("<<ComboboxSelected>>", self._on_timeframe_changed)
         
+        # Get currency symbol
+        currency_symbol = get_currency_symbol(self.current_currency)
+        
         # Current price
         price_frame = ttk.Frame(rec_card, style="Stats.TFrame")
         price_frame.pack(fill=tk.X, pady=5)
-        price_label = ttk.Label(price_frame, text=f"${recommendation.current_price:.2f}", 
+        price_label = ttk.Label(price_frame, text=f"{currency_symbol}{recommendation.current_price:.2f}", 
                                font=(font_family[1], 16, "bold"), style="Stats.TLabel")
         price_label.pack(side=tk.LEFT)
         
@@ -291,8 +339,7 @@ class StatsPanel(ttk.Frame):
         self.bought_price_recommendation.pack(side=tk.RIGHT)
         
         # Entry/Exit/Stop Loss prices in a modern card layout
-        if (recommendation.recommendation in ("BUY", "SELL") and
-            recommendation.entry_price is not None and
+        if (recommendation.entry_price is not None and
             recommendation.exit_price is not None and
             recommendation.stop_loss is not None):
             prices_card = ttk.Frame(rec_card, style="Stats.TFrame")
@@ -302,24 +349,24 @@ class StatsPanel(ttk.Frame):
             entry_frame = ttk.Frame(prices_card, style="Stats.TFrame")
             entry_frame.pack(side=tk.LEFT, padx=(0, 15))
             ttk.Label(entry_frame, text="Entry", style="StatsSmall.TLabel").pack()
-            ttk.Label(entry_frame, text=f"${recommendation.entry_price:.2f}", 
-                     font=(font_family[1], 12), foreground="#34C759").pack()
+            ttk.Label(entry_frame, text=f"{currency_symbol}{recommendation.entry_price:.2f}", 
+                     font=(font_family[1], 12), foreground="#34C759", style="Stats.TLabel").pack()
             
             # Exit price
             exit_frame = ttk.Frame(prices_card, style="Stats.TFrame")
             exit_frame.pack(side=tk.LEFT, padx=(0, 15))
             ttk.Label(exit_frame, text="Target", style="StatsSmall.TLabel").pack()
-            ttk.Label(exit_frame, text=f"${recommendation.exit_price:.2f}", 
-                     font=(font_family[1], 12), foreground="#007AFF").pack()
+            ttk.Label(exit_frame, text=f"{currency_symbol}{recommendation.exit_price:.2f}", 
+                     font=(font_family[1], 12), foreground="#007AFF", style="Stats.TLabel").pack()
             
             # Stop loss
             stop_frame = ttk.Frame(prices_card, style="Stats.TFrame")
             stop_frame.pack(side=tk.LEFT)
             ttk.Label(stop_frame, text="Stop Loss", style="StatsSmall.TLabel").pack()
-            ttk.Label(stop_frame, text=f"${recommendation.stop_loss:.2f}", 
-                     font=(font_family[1], 12), foreground="#FF3B30").pack()
+            ttk.Label(stop_frame, text=f"{currency_symbol}{recommendation.stop_loss:.2f}", 
+                     font=(font_family[1], 12), foreground="#FF3B30", style="Stats.TLabel").pack()
         else:
-            # Show a message for HOLD or invalid values
+            # Show a message for invalid values
             msg = ttk.Label(rec_card, text="No actionable trade setup for this stock and timeframe.",
                              style="StatsValue.TLabel", foreground="#888888", font=(font_family[1], 11, "italic"))
             msg.pack(pady=10)
@@ -401,7 +448,6 @@ class StatsPanel(ttk.Frame):
         # Recommendation Section
         if self.current_recommendation:
             self._add_recommendation_section(self.current_recommendation)
-            
             # Restore bought price value if it existed
             if current_bought_price and hasattr(self, 'bought_price_var'):
                 self.bought_price_var.set(current_bought_price)
@@ -411,8 +457,9 @@ class StatsPanel(ttk.Frame):
         if self.current_timeframes_data:
             self._add_timeframes_section(self.current_timeframes_data)
         
-        # Note: We don't have access to the original stats_dict here, so we skip the statistics section
-        # The recommendation and timeframes sections are the most important for timeframe switching
+        # Statistics Section (fix: always show if available)
+        if hasattr(self, 'last_stats_dict') and self.last_stats_dict:
+            self._add_statistics_section(self.last_stats_dict)
 
     def _add_timeframes_section(self, timeframes_data):
         """Add the timeframes analysis section."""
