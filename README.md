@@ -10,7 +10,6 @@
 ---
 
 <div align="center">
-  <img src="docs/screenshot.png" alt="StockAnalyzer UI" width="700"/>
   <br/>
   <b>Stock Price Visualizer & Analyzer</b>
   <br/>
