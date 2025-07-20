@@ -21,11 +21,11 @@
 
 ## ✨ Overview
 
-**Stock Price Visualizer & Analyzer** is a sleek, modern Python desktop app for visualizing and analyzing global stock data. Inspired by Apple's design language, it features a clean, intuitive interface, beautiful charts, and seamless currency conversion for a truly international experience.
+**Stock Price Visualizer & Analyzer** is a sleek, modern Python desktop app for visualizing and analyzing global stock data. It features a clean, intuitive interface, beautiful charts, and seamless currency conversion for a truly international experience.
 
 - 📈 **Visualize** historical stock prices with interactive, modern charts
-- 🌍 **Analyze** stocks from US, India, UK, Japan, and more
-- 💱 **Convert** prices between USD, INR, EUR, GBP, JPY with real-time rates
+- 🌍 **Analyze** stocks from US, UK, Japan, India and more
+- 💱 **Convert** prices between USD, EUR, GBP, JPY, INR with real-time rates
 - 🧮 **Professional statistics** and actionable recommendations
 - 🧊 **Automatic cache management** for fast, fresh data
 
