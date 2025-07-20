@@ -9,12 +9,7 @@
 
 ---
 
-<div align="center">
-  <br/>
-  <b>Stock Price Visualizer & Analyzer</b>
-  <br/>
-  
-</div>
+
 
 ---
 
