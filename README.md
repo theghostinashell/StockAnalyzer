@@ -7,7 +7,6 @@
 ![Forks](https://img.shields.io/github/forks/yourusername/stockanalyzer)
 ![Stars](https://img.shields.io/github/stars/yourusername/stockanalyzer)
 
----
 
 
 
