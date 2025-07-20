@@ -14,7 +14,7 @@
   <br/>
   <b>Stock Price Visualizer & Analyzer</b>
   <br/>
-  <i>Modern, Apple-inspired, cross-currency stock analytics for everyone.</i>
+  
 </div>
 
 ---
