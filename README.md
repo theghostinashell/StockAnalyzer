@@ -1,108 +1,112 @@
 
 
-# STOCKANALYZER
+# Stock Price Visualizer & Analyzer
 
-A Python-based Stock Data Visualizer & Analyzer by ME!
-
-![GitHub last commit](https://img.shields.io/github/last-commit/yourusername/stockanalyzer)
-![GitHub issues](https://img.shields.io/github/issues/yourusername/stockanalyzer)
-![GitHub forks](https://img.shields.io/github/forks/yourusername/stockanalyzer)
-![GitHub stars](https://img.shields.io/github/stars/yourusername/stockanalyzer)
+![Last Commit](https://img.shields.io/github/last-commit/yourusername/stockanalyzer)
+![Issues](https://img.shields.io/github/issues/yourusername/stockanalyzer)
+![Forks](https://img.shields.io/github/forks/yourusername/stockanalyzer)
+![Stars](https://img.shields.io/github/stars/yourusername/stockanalyzer)
 
 ---
 
-## Table of Contents
-
-- [Overview](#overview)
-- [Getting Started](#getting-started)
-- [Usage Details](#usage-details)
-- [Features](#features)
-- [License](#license)
-- [Testing](#testing)
-
----
-
-## Overview
-
-**StockAnalyzer** is a beginner-made stock visualizer and analyzer that enables users to:
-
-- Fetch historical stock price data using Yahoo Finance.
-- Visualize stock price trends with moving averages.
-- Calculate and display basic statistical metrics like mean and volatility.
-
-
-
-### What can you do with StockAnalyzer?
-
-✅ Retrieve & display historical stock data  
-✅ Plot moving averages & visualize trends  
-✅ Basic data analysis & summary stats  
-
-### Tools Used:
-
-- **Python:** Core scripting language used for data collection and visualization.
-- **Pandas:** Clean & structure the stock data.
-- **Matplotlib:** Generate beautiful charts.
-- **Yahoo Finance (yfinance):** Retrieve accurate stock price data.
-
-> Note: This project is strictly educational & experimental. It is not intended for actual financial analysis or advice.
+<div align="center">
+  <img src="docs/screenshot.png" alt="StockAnalyzer UI" width="700"/>
+  <br/>
+  <b>Stock Price Visualizer & Analyzer</b>
+  <br/>
+  <i>Modern, Apple-inspired, cross-currency stock analytics for everyone.</i>
+</div>
 
 ---
 
-## Getting Started
+## ✨ Overview
 
-### Prerequisites
+**Stock Price Visualizer & Analyzer** is a sleek, modern Python desktop app for visualizing and analyzing global stock data. Inspired by Apple's design language, it features a clean, intuitive interface, beautiful charts, and seamless currency conversion for a truly international experience.
 
-To get everything ready, make sure you have:
-
-- Python (3.7 or higher)
-- Pip installed
-- An IDE like VSCode or PyCharm
-
-### Installation
-
-1. Clone the repo (or download as ZIP):
-
-```bash
-git clone https://github.com/yourusername/stockanalyzer
-````
-
-2. Go to the project directory:
-
-```bash
-cd stockanalyzer
-```
-
-3. Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
+- 📈 **Visualize** historical stock prices with interactive, modern charts
+- 🌍 **Analyze** stocks from US, India, UK, Japan, and more
+- 💱 **Convert** prices between USD, INR, EUR, GBP, JPY with real-time rates
+- 🧮 **Professional statistics** and actionable recommendations
+- 🧊 **Automatic cache management** for fast, fresh data
 
 ---
 
-## Usage
+## 🚀 Features
 
-To run the program:
+- **Apple-like Modern UI:** Clean, minimalist, and responsive interface
+- **Multi-currency Support:** Instantly convert all prices to your preferred currency
+- **Accurate Global Data:** Fetches from Yahoo Finance, supports major world exchanges
+- **Advanced Analysis:** Moving averages, RSI, volatility, drawdown, and more
+- **Smart Recommendations:** Buy/Hold/Sell signals with confidence levels
+- **Interactive Charts:** Line and candlestick modes, hover tooltips, dark/light themes
+- **Automatic Cache Clearing:** Cache is wiped every time you close the app
 
+---
+
+## 🖥️ Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/yourusername/stockanalyzer
+   cd stockanalyzer
+   ```
+2. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+---
+
+## 💡 Usage
+
+Simply run:
 ```bash
 python run_app.py
 ```
 
----
-
-## Features
-
-* Visualize stock trends.
-* Moving average lines.
-* Basic statistics.
+- Enter a stock symbol (e.g., `AAPL`, `TATAMOTORS`)
+- Select your preferred currency (USD, INR, EUR, GBP, JPY)
+- Choose a time range and analyze
+- Enjoy beautiful, interactive charts and professional-grade analytics
 
 ---
 
-## License
+## 🌐 Currency Conversion
+- All prices are shown in USD by default, regardless of the stock's native currency
+- When you switch currency, all prices are converted in real-time using the latest rates
+- Foreign stocks (e.g., Tata Motors) are always converted to USD first, then to your selected currency
 
+---
+
+## 🧊 Cache Behavior
+- Data is cached for fast access during your session
+- **Cache is automatically cleared every time you close the app**—no stale data, always fresh
+
+---
+
+## 📸 Screenshots
+
+> _Add your own screenshots to `docs/screenshot.png` to showcase the beautiful UI!_
+
+---
+
+## 📦 Dependencies
+- Python 3.7+
+- yfinance
+- pandas
+- matplotlib
+- numpy
+- tkinter (standard with Python)
+
+---
+
+## 📝 License
 [MIT](LICENSE)
 
 ---
+
+<div align="center">
+  <i>Designed with a modern, Apple-inspired aesthetic for the best user experience.</i>
+</div>
 
 

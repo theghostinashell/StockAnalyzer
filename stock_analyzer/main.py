@@ -16,10 +16,13 @@ def main():
         root.attributes('-fullscreen', True)
     app = MainWindow(root)
     app.pack(fill=tk.BOTH, expand=True)
-    try:
-        root.mainloop()
-    finally:
+
+    def on_close():
         clear_cache()
+        root.destroy()
+
+    root.protocol("WM_DELETE_WINDOW", on_close)
+    root.mainloop()
 
 
 if __name__ == "__main__":

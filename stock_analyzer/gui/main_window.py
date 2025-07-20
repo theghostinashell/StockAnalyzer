@@ -3,7 +3,7 @@ from tkinter import ttk
 from stock_analyzer.gui.chart_widget import ChartWidget
 from stock_analyzer.gui.stats_panel import StatsPanel
 from stock_analyzer.gui.settings_dialog import SettingsDialog
-from stock_analyzer.data.stock_fetcher import fetch_stock_data, get_company_name, get_available_currencies, get_currency_symbol
+from stock_analyzer.data.stock_fetcher import fetch_stock_data, get_company_name, get_available_currencies, get_currency_symbol, get_usd_to_currency_rate
 from stock_analyzer.data.cache_manager import get_cached_data, set_cached_data
 from stock_analyzer.utils.helpers import load_config
 import threading
@@ -25,6 +25,7 @@ class MainWindow(ttk.Frame):
         
         # Initialize currency
         self.current_currency = 'USD'
+        self.conversion_rate = 1.0
         
         # Configure modern style
         self.setup_modern_style()
@@ -409,12 +410,13 @@ class MainWindow(ttk.Frame):
         """Handle currency change - update display immediately if data is available."""
         currency_selection = self.currency_var.get()
         self.current_currency = currency_selection.split(' - ')[0] if ' - ' in currency_selection else 'USD'
-        
-        # Update chart currency
+        # Fetch conversion rate from USD to selected currency
+        self.conversion_rate = get_usd_to_currency_rate(self.current_currency)
+        # Update chart and stats panel with new currency and conversion rate
         self.chart_panel.set_currency(self.current_currency)
-        
-        # Update stats panel currency
+        self.chart_panel.set_conversion_rate(self.conversion_rate)
         self.stats_panel.set_currency(self.current_currency)
+        self.stats_panel.set_conversion_rate(self.conversion_rate)
 
     def _fetch_and_update(self, symbol, range_str):
         try:
@@ -436,12 +438,12 @@ class MainWindow(ttk.Frame):
                 start = end - datetime.timedelta(days=182)
             start_str = start.strftime("%Y-%m-%d")
             end_str = end.strftime("%Y-%m-%d")
-            # Try cache first
-            df = get_cached_data(symbol, start_str, end_str)
+            # Try cache first (now with currency)
+            df = get_cached_data(symbol, start_str, end_str, self.current_currency)
             if df is None:
                 df = fetch_stock_data(symbol, start_str, end_str, self.current_currency)
                 if df is not None:
-                    set_cached_data(symbol, start_str, end_str, df)
+                    set_cached_data(symbol, start_str, end_str, df, self.current_currency)
             # Update UI in main thread
             self.after(0, self._update_ui_after_fetch, symbol, df, end_str)
         except Exception as e:
@@ -494,8 +496,9 @@ class MainWindow(ttk.Frame):
         # Update chart label with company name
         self.chart_label.config(text=f"{company_name} Price Chart")
         
-        # Set currency for chart
+        # Set currency and conversion rate for chart
         self.chart_panel.set_currency(self.current_currency)
+        self.chart_panel.set_conversion_rate(self.conversion_rate)
         
         # Update chart
         self.chart_panel.plot_data(df, symbol)
@@ -513,7 +516,9 @@ class MainWindow(ttk.Frame):
         # Get short-term recommendation by default
         recommendation = generate_recommendation(symbol, df, timeframes_data, "short_term")
         
-        # Update stats panel
+        # Update stats panel with currency and conversion rate
+        self.stats_panel.set_currency(self.current_currency)
+        self.stats_panel.set_conversion_rate(self.conversion_rate)
         self.stats_panel.update_stats(stats_dict, recommendation, timeframes_data, df, symbol)
         
         # Update footer

@@ -1,15 +1,10 @@
 import tkinter as tk
 from tkinter import ttk
-try:
-    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-    import matplotlib.pyplot as plt
-    import matplotlib.dates as mdates
-    from matplotlib.patches import Rectangle
-    import numpy as np
-except ImportError as e:
-    print("Required package not found:", e)
-    print("Please install dependencies with: pip install -r requirements.txt")
-    raise
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from matplotlib.patches import Rectangle
+import numpy as np
 
 # Try different import approaches
 try:
@@ -32,6 +27,7 @@ class ChartWidget(ttk.Frame):
         self.current_symbol = None
         self.current_company_name = None
         self.current_currency = 'USD'
+        self.conversion_rate = 1.0
         
         # Hover tooltip variables
         self.hover_annotation = None
@@ -81,6 +77,11 @@ class ChartWidget(ttk.Frame):
     def set_currency(self, currency_code):
         """Set the currency for price display."""
         self.current_currency = currency_code
+        if self.current_data is not None:
+            self.plot_data(self.current_data, self.current_symbol)
+
+    def set_conversion_rate(self, conversion_rate):
+        self.conversion_rate = conversion_rate
         if self.current_data is not None:
             self.plot_data(self.current_data, self.current_symbol)
 
@@ -322,7 +323,7 @@ class ChartWidget(ttk.Frame):
         
         # Add annotation with price
         currency_symbol = get_currency_symbol(self.current_currency)
-        price_text = f"{currency_symbol}{closest_y:.2f}"
+        price_text = f"{currency_symbol}{closest_y * self.conversion_rate:.2f}"
         date_text = closest_x.strftime('%Y-%m-%d') if hasattr(closest_x, 'strftime') else str(closest_x)
         
         # Position annotation above the point

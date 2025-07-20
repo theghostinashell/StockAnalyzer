@@ -22,6 +22,7 @@ class StatsPanel(ttk.Frame):
         self.current_df = None
         self.current_symbol = None
         self.current_currency = 'USD'
+        self.conversion_rate = 1.0
         self.last_timeframe_type = "short_term"  # Store the last selected timeframe
         
         # Setup modern style
@@ -132,6 +133,11 @@ class StatsPanel(ttk.Frame):
     def set_currency(self, currency_code):
         """Set the currency for price display."""
         self.current_currency = currency_code
+        if hasattr(self, 'current_df') and self.current_df is not None:
+            self._rebuild_stats_display()
+
+    def set_conversion_rate(self, conversion_rate):
+        self.conversion_rate = conversion_rate
         if hasattr(self, 'current_df') and self.current_df is not None:
             self._rebuild_stats_display()
 
@@ -307,7 +313,7 @@ class StatsPanel(ttk.Frame):
         # Current price
         price_frame = ttk.Frame(rec_card, style="Stats.TFrame")
         price_frame.pack(fill=tk.X, pady=5)
-        price_label = ttk.Label(price_frame, text=f"{currency_symbol}{recommendation.current_price:.2f}", 
+        price_label = ttk.Label(price_frame, text=f"{currency_symbol}{recommendation.current_price * self.conversion_rate:.2f}", 
                                font=(font_family[1], 16, "bold"), style="Stats.TLabel")
         price_label.pack(side=tk.LEFT)
         
@@ -349,21 +355,21 @@ class StatsPanel(ttk.Frame):
             entry_frame = ttk.Frame(prices_card, style="Stats.TFrame")
             entry_frame.pack(side=tk.LEFT, padx=(0, 15))
             ttk.Label(entry_frame, text="Entry", style="StatsSmall.TLabel").pack()
-            ttk.Label(entry_frame, text=f"{currency_symbol}{recommendation.entry_price:.2f}", 
+            ttk.Label(entry_frame, text=f"{currency_symbol}{recommendation.entry_price * self.conversion_rate:.2f}", 
                      font=(font_family[1], 12), foreground="#34C759", style="Stats.TLabel").pack()
             
             # Exit price
             exit_frame = ttk.Frame(prices_card, style="Stats.TFrame")
             exit_frame.pack(side=tk.LEFT, padx=(0, 15))
             ttk.Label(exit_frame, text="Target", style="StatsSmall.TLabel").pack()
-            ttk.Label(exit_frame, text=f"{currency_symbol}{recommendation.exit_price:.2f}", 
+            ttk.Label(exit_frame, text=f"{currency_symbol}{recommendation.exit_price * self.conversion_rate:.2f}", 
                      font=(font_family[1], 12), foreground="#007AFF", style="Stats.TLabel").pack()
             
             # Stop loss
             stop_frame = ttk.Frame(prices_card, style="Stats.TFrame")
             stop_frame.pack(side=tk.LEFT)
             ttk.Label(stop_frame, text="Stop Loss", style="StatsSmall.TLabel").pack()
-            ttk.Label(stop_frame, text=f"{currency_symbol}{recommendation.stop_loss:.2f}", 
+            ttk.Label(stop_frame, text=f"{currency_symbol}{recommendation.stop_loss * self.conversion_rate:.2f}", 
                      font=(font_family[1], 12), foreground="#FF3B30", style="Stats.TLabel").pack()
         else:
             # Show a message for invalid values
@@ -481,7 +487,7 @@ class StatsPanel(ttk.Frame):
             
             # Price info
             currency_symbol = get_currency_symbol(self.current_currency)
-            price_info = f"{currency_symbol}{analysis['current_price']:.2f} ({analysis['price_change']:+.1f}%)"
+            price_info = f"{currency_symbol}{analysis['current_price'] * self.conversion_rate:.2f} ({analysis['price_change']:+.1f}%)"
             price_color = "#34C759" if analysis['price_change'] >= 0 else "#FF3B30"
             ttk.Label(tf_frame, text=price_info, style="StatsValue.TLabel", 
                      foreground=price_color).pack(anchor=tk.W)
@@ -522,7 +528,7 @@ class StatsPanel(ttk.Frame):
             
         try:
             bought_price = float(self.bought_price_var.get())
-            current_price = self.current_recommendation.current_price
+            current_price = self.current_recommendation.current_price * self.conversion_rate
             
             # Calculate percentage change
             pct_change = ((current_price - bought_price) / bought_price) * 100
@@ -613,14 +619,14 @@ class StatsPanel(ttk.Frame):
                 # Format value with appropriate suffix
                 if isinstance(value, (int, float)):
                     if "Return" in key or "Drawdown" in key:
-                        formatted_value = f"{value:.2f}%"
+                        formatted_value = f"{value * self.conversion_rate:.2f}%"
                     elif "Ratio" in key:
                         formatted_value = f"{value:.2f}"
                     elif "Price" in key or "Volatility" in key:
                         currency_symbol = get_currency_symbol(self.current_currency)
-                        formatted_value = f"{currency_symbol}{value:.2f}"
+                        formatted_value = f"{currency_symbol}{value * self.conversion_rate:.2f}"
                     else:
-                        formatted_value = f"{value:.2f}"
+                        formatted_value = f"{value * self.conversion_rate:.2f}"
                 else:
                     formatted_value = str(value)
                 

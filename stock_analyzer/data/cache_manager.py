@@ -9,13 +9,16 @@ def get_cache_dir():
     os.makedirs(cache_dir, exist_ok=True)
     return cache_dir
 
-def get_cache_filename(symbol, start_date, end_date):
-    return f"{symbol}_{start_date}_{end_date}.pkl"
+def get_cache_filename(symbol, start_date, end_date, currency=None):
+    if currency:
+        return f"{symbol}_{start_date}_{end_date}_{currency}.pkl"
+    else:
+        return f"{symbol}_{start_date}_{end_date}.pkl"
 
-def get_cached_data(symbol, start_date, end_date):
+def get_cached_data(symbol, start_date, end_date, currency=None):
     try:
         cache_dir = get_cache_dir()
-        filename = get_cache_filename(symbol, start_date, end_date)
+        filename = get_cache_filename(symbol, start_date, end_date, currency)
         filepath = os.path.join(cache_dir, filename)
         
         if os.path.exists(filepath):
@@ -28,10 +31,10 @@ def get_cached_data(symbol, start_date, end_date):
         print(f"Error reading cache: {e}")
     return None
 
-def set_cached_data(symbol, start_date, end_date, data):
+def set_cached_data(symbol, start_date, end_date, data, currency=None):
     try:
         cache_dir = get_cache_dir()
-        filename = get_cache_filename(symbol, start_date, end_date)
+        filename = get_cache_filename(symbol, start_date, end_date, currency)
         filepath = os.path.join(cache_dir, filename)
         
         with open(filepath, 'wb') as f:

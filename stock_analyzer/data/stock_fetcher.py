@@ -1,5 +1,11 @@
-import yfinance as yf
-import pandas as pd
+try:
+    import yfinance as yf
+except ImportError:
+    raise ImportError("yfinance is not installed. Please install it with 'pip install yfinance'.")
+try:
+    import pandas as pd
+except ImportError:
+    raise ImportError("pandas is not installed. Please install it with 'pip install pandas'.")
 import requests
 import json
 import os
@@ -21,46 +27,43 @@ def fetch_stock_data(symbol, start_date, end_date, currency='USD'):
         # Get the stock's native currency
         stock_info = ticker.info
         native_currency = stock_info.get('currency', 'USD')
-        
-        # If the requested currency is different from native currency, convert
-        if currency != native_currency and currency != 'USD':
-            # Get exchange rate data for conversion
+
+        # Step 1: Convert to USD if needed
+        if native_currency != 'USD':
             try:
-                # Create currency pair symbol (e.g., USDINR=X for USD to INR)
-                if currency == 'INR':
-                    currency_pair = f"{native_currency}INR=X"
-                elif currency == 'GBP':
-                    currency_pair = f"{native_currency}GBP=X"
-                elif currency == 'EUR':
-                    currency_pair = f"{native_currency}EUR=X"
-                elif currency == 'JPY':
-                    currency_pair = f"{native_currency}JPY=X"
-                else:
-                    currency_pair = f"{native_currency}{currency}=X"
-                
-                # Get exchange rate data
+                currency_pair = f"{native_currency}USD=X"
                 exchange_ticker = yf.Ticker(currency_pair)
                 exchange_data = exchange_ticker.history(start=start_date, end=end_date)
-                
                 if not exchange_data.empty:
-                    # Use the latest exchange rate for conversion
                     latest_rate = exchange_data['Close'].iloc[-1]
-                    
-                    # Convert all price columns
                     price_columns = ['Open', 'High', 'Low', 'Close']
                     for col in price_columns:
                         if col in df.columns:
                             df[col] = df[col] * latest_rate
-                    
-                    print(f"Converted {native_currency} to {currency} using rate: {latest_rate:.4f}")
+                    print(f"Converted {native_currency} to USD using rate: {latest_rate:.4f}")
                 else:
                     print(f"Could not get exchange rate for {currency_pair}, using native currency")
-                    
             except Exception as e:
-                print(f"Currency conversion error: {e}, using native currency")
-        
+                print(f"Currency conversion error (to USD): {e}, using native currency")
+
+        # Step 2: If user selected a different currency, convert from USD to that currency
+        if currency != 'USD':
+            try:
+                currency_pair = f"USD{currency}=X"
+                exchange_ticker = yf.Ticker(currency_pair)
+                exchange_data = exchange_ticker.history(start=start_date, end=end_date)
+                if not exchange_data.empty:
+                    latest_rate = exchange_data['Close'].iloc[-1]
+                    price_columns = ['Open', 'High', 'Low', 'Close']
+                    for col in price_columns:
+                        if col in df.columns:
+                            df[col] = df[col] * latest_rate
+                    print(f"Converted USD to {currency} using rate: {latest_rate:.4f}")
+                else:
+                    print(f"Could not get exchange rate for {currency_pair}, using USD")
+            except Exception as e:
+                print(f"Currency conversion error (to {currency}): {e}, using USD")
         return df
-        
     except Exception as e:
         print(f"Error fetching data for {symbol}: {e}")
         return None
@@ -287,3 +290,20 @@ def get_stock_info(symbol: str) -> Dict:
             'sector': None,
             'industry': None
         }
+
+def get_usd_to_currency_rate(currency_code):
+    """
+    Fetch the latest USD to selected currency rate using yfinance.
+    Returns 1.0 if currency_code is USD or on error.
+    """
+    if currency_code == 'USD':
+        return 1.0
+    try:
+        currency_pair = f"USD{currency_code}=X"
+        ticker = yf.Ticker(currency_pair)
+        data = ticker.history(period="1d")
+        if not data.empty:
+            return float(data['Close'].iloc[-1])
+    except Exception as e:
+        print(f"Error fetching USD to {currency_code} rate: {e}")
+    return 1.0
