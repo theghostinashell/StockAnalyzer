@@ -79,7 +79,7 @@ python run_app.py
 
 ## 📸 Screenshots
 
-> _Add your own screenshots to `docs/screenshot.png` to showcase the beautiful UI!_
+
 <img src="docs/screenshot.png" alt="StockAnalyzer UI" />
 ---
 
