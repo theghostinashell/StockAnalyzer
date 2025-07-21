@@ -26,7 +26,7 @@
 
 ## 🚀 Features
 
-- **Apple-like Modern UI:** Clean, minimalist, and responsive interface
+- **Modern UI:** Clean, minimalist, and responsive interface
 - **Multi-currency Support:** Instantly convert all prices to your preferred currency
 - **Accurate Global Data:** Fetches from Yahoo Finance, supports major world exchanges
 - **Advanced Analysis:** Moving averages, RSI, volatility, drawdown, and more
